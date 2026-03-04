@@ -1235,39 +1235,44 @@ document.getElementById('notbtn').insertAdjacentHTML('afterend',
 initApiModal();
   
 <!-- ═══ API CONFIG MODAL ═══ -->
-<div id="apimodal">
-  <div class="amodalbox">
+<div id="apimodal" class="hidden"> <div class="amodalbox">
     <h2>🛰 VIEWMONITOR PRO</h2>
     <p>Backend API adresini girin.<br>
     <span style="color:var(--green)">Render.com</span> veya yerel sunucu adresi.</p>
-
-    <div class="apresets">
-      <div class="apreset" onclick="setPreset('http://127.0.0.1:8080')">localhost:8080</div>
-      <div class="apreset" onclick="document.getElementById('apiurl').value='https://'">render.com →</div>
-    </div>
-
-    <input class="aurl" id="apiurl" type="text"
-      placeholder="https://viewmonitor-api.onrender.com"
-      autocomplete="off" autocorrect="off" spellcheck="false">
-
     <div style="margin-top:4px;display:flex;justify-content:center;gap:0;flex-wrap:wrap">
       <button class="abtn" onclick="saveApiUrl()">✓ BAĞLAN</button>
       <button class="askip" onclick="skipApiModal()">Yerel kullan (localhost)</button>
     </div>
-
-    <div class="ainfo">
-      💡 Render.com'da backend deploy ettiysen URL'i kopyala yapıştır.<br>
-      Yerel çalıştırıyorsan "Yerel kullan" butonuna bas.<br>
-      <a href="https://github.com" target="_blank">GitHub</a> ·
-      <a href="https://render.com" target="_blank">Render.com</a> ·
-      <span style="cursor:pointer;color:var(--tdim);text-decoration:underline"
-        onclick="resetApiUrl()">Ayarı sıfırla</span>
-    </div>
   </div>
 </div>
-  
-</script>
 
+<script>
+  'use strict';
+  // ... Tüm JavaScript fonksiyonlarınız burada kalmalı ...
+
+  function initApiModal() {
+    const saved = localStorage.getItem('vm_api');
+    const param = new URLSearchParams(window.location.search).get('api');
+    if (param) { localStorage.setItem('vm_api', param); hideApiModal(); return; }
+    if (saved && saved.startsWith('http')) { hideApiModal(); return; }
+    
+    // Eleman artık script dışında olduğu için bulunabilecek
+    const modal = document.getElementById('apimodal');
+    if (modal) modal.classList.remove('hidden');
+    setTimeout(() => {
+      const input = document.getElementById('apiurl');
+      if (input) input.focus();
+    }, 300);
+  }
+
+  function hideApiModal() {
+    const modal = document.getElementById('apimodal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  // Sayfa yüklendiğinde çalıştır
+  initApiModal();
+</script>
 
 
 </body>
