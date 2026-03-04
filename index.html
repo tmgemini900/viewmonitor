@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -373,7 +372,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
 .amodalbox .apresets{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:14px}
 .amodalbox .apreset{background:var(--card);border:1px solid var(--border);
   color:var(--tdim);font-family:var(--mono);font-size:.58rem;padding:3px 8px;
-  cursor:pointer;border-radius:3px;transition:all .12s}
+  cursor:pointer;border-radius:3px;transition:all .12px}
 .amodalbox .apreset:hover{border-color:var(--cyan);color:var(--cyan)}
 .amodalbox .ainfo{font-size:.6rem;color:var(--tdim);margin-top:10px;line-height:1.6}
 .amodalbox .ainfo a{color:var(--cyan);text-decoration:none}
@@ -404,6 +403,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
   <button class="tbtn" onclick="exportYap('csv')">⬇ CSV</button>
   <button class="tbtn" onclick="toggleFSMap()" id="fsbtn">⛶</button>
   <button class="tbtn" onclick="reqNotif()" id="notbtn">🔔</button>
+  <button class="tbtn" onclick="document.getElementById('apimodal').classList.remove('hidden')" title="API Adresi Değiştir" style="margin-left:2px">⚙ API</button>
   <div id="clock">--:--:--</div>
 </header>
 
@@ -418,7 +418,6 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
   <!-- TV PANEL -->
   <div id="tab-tv" class="tpanel on" style="overflow:hidden">
     <div id="tvpanel">
-      <!-- Grid controls -->
       <div class="tv-grid-controls">
         <span>CANLI YAYIN</span>
         <div class="grid-btns">
@@ -427,11 +426,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
           <button class="gbtn" onclick="setGrid(9)" title="3×3">9</button>
         </div>
       </div>
-
-      <!-- Video grid — slots filled by JS -->
       <div id="tvgrid"></div>
-
-      <!-- Channel selector -->
       <div class="ch-selector">
         <div class="ch-tabs">
           <button class="ch-tab on" onclick="chTab('tr',this)">🇹🇷 TR</button>
@@ -467,30 +462,14 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
       </div>
     </div>
     <div class="cam-ext">
-      <a href="https://kgm.gov.tr/sayfalar/kgm/trafikkamera.aspx" target="_blank">
-        <span>🛣</span>KGM Otoyol Kameraları (Tüm Türkiye)
-      </a>
-      <a href="https://www.earthcam.com/world/turkey/istanbul/" target="_blank">
-        <span>🌆</span>İstanbul EarthCam
-      </a>
-      <a href="https://www.skylinewebcams.com/en/webcam/turkey.html" target="_blank">
-        <span>📷</span>Türkiye Web Kameraları
-      </a>
-      <a href="https://zoom.earth" target="_blank">
-        <span>🛰</span>Zoom.Earth Uydu Görüntüsü
-      </a>
-      <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank">
-        <span>🛰</span>Sentinel Hub — EO Browser
-      </a>
-      <a href="https://www.earthcam.com/world/israel/" target="_blank">
-        <span>🇮🇱</span>İsrail EarthCam
-      </a>
-      <a href="https://www.earthcam.com/world/ukraine/" target="_blank">
-        <span>🇺🇦</span>Ukrayna EarthCam
-      </a>
-      <a href="https://www.insecam.org/en/bycountry/TR/" target="_blank">
-        <span>📡</span>Türkiye IP Kamera Listesi
-      </a>
+      <a href="https://kgm.gov.tr/sayfalar/kgm/trafikkamera.aspx" target="_blank"><span>🛣</span>KGM Otoyol Kameraları (Tüm Türkiye)</a>
+      <a href="https://www.earthcam.com/world/turkey/istanbul/" target="_blank"><span>🌆</span>İstanbul EarthCam</a>
+      <a href="https://www.skylinewebcams.com/en/webcam/turkey.html" target="_blank"><span>📷</span>Türkiye Web Kameraları</a>
+      <a href="https://zoom.earth" target="_blank"><span>🛰</span>Zoom.Earth Uydu Görüntüsü</a>
+      <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank"><span>🛰</span>Sentinel Hub — EO Browser</a>
+      <a href="https://www.earthcam.com/world/israel/" target="_blank"><span>🇮🇱</span>İsrail EarthCam</a>
+      <a href="https://www.earthcam.com/world/ukraine/" target="_blank"><span>🇺🇦</span>Ukrayna EarthCam</a>
+      <a href="https://www.insecam.org/en/bycountry/TR/" target="_blank"><span>📡</span>Türkiye IP Kamera Listesi</a>
     </div>
   </div>
 
@@ -603,7 +582,7 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
   </div>
 </aside>
 
-<!-- Search modal -->
+<!-- ═══ SEARCH MODAL ═══ -->
 <div id="searchmodal">
   <div class="smhead">
     <h3>🔍 HABER ARAMA — ANA AKIŞ DEVAM EDİYOR</h3>
@@ -621,18 +600,42 @@ body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
   <div class="sminfo" id="sminfo">Ana veri akışı çalışıyor.</div>
 </div>
 
+<!-- ═══ API CONFIG MODAL ═══ -->
+<div id="apimodal" class="hidden">
+  <div class="amodalbox">
+    <h2>🛰 VIEWMONITOR PRO</h2>
+    <p>Backend API adresini girin.<br>
+    <span style="color:var(--green)">Render.com</span> veya yerel sunucu adresi.</p>
+    <div class="apresets">
+      <div class="apreset" onclick="setPreset('http://127.0.0.1:8080')">localhost:8080</div>
+      <div class="apreset" onclick="setPreset('https://')">render.com →</div>
+    </div>
+    <input class="aurl" id="apiurl" type="text"
+      placeholder="https://viewmonitor-api.onrender.com"
+      autocomplete="off" autocorrect="off" spellcheck="false">
+    <div style="margin-top:4px;display:flex;justify-content:center;gap:0;flex-wrap:wrap">
+      <button class="abtn" onclick="saveApiUrl()">✓ BAĞLAN</button>
+      <button class="askip" onclick="skipApiModal()">Yerel kullan (localhost)</button>
+    </div>
+    <div class="ainfo">
+      💡 Render.com'da backend deploy ettiysen URL'i kopyala yapıştır.<br>
+      Yerel çalıştırıyorsan "Yerel kullan" butonuna bas.<br>
+      <a href="https://github.com" target="_blank">GitHub</a> ·
+      <a href="https://render.com" target="_blank">Render.com</a> ·
+      <span style="cursor:pointer;color:var(--tdim);text-decoration:underline"
+        onclick="resetApiUrl()">Ayarı sıfırla</span>
+    </div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <script>
 'use strict';
+
 // ── API URL Konfigürasyonu ──
-// Öncelik sırası:
-// 1. URL parametresi: ?api=https://...
-// 2. localStorage'da kayıtlı adres
-// 3. Aynı makinede localhost:8080
-// 4. Aynı ağda aynı host:8080
 (function(){
   const _p = new URLSearchParams(window.location.search);
   let savedApi = localStorage.getItem('vm_api');
@@ -714,7 +717,6 @@ function setGrid(n) {
 
 function buildGrid() {
   const grid = document.getElementById('tvgrid');
-  // cleanup
   Object.values(hlsInstances).forEach(h=>{try{h.destroy()}catch(e){}});
   hlsInstances = {};
   grid.innerHTML = '';
@@ -722,7 +724,6 @@ function buildGrid() {
   const cols = gridSize === 1 ? 1 : gridSize === 4 ? 2 : 3;
   grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
 
-  // fill up to gridSize slots
   const chList = activeChannels.slice(0, gridSize);
   while(chList.length < gridSize) chList.push(null);
 
@@ -758,7 +759,6 @@ function buildGrid() {
     grid.appendChild(slot);
 
     if (!ch.yt) {
-      // small delay to stagger
       setTimeout(()=>loadHLS(idx, ch.url), idx * 500);
     }
   });
@@ -803,7 +803,6 @@ function chTab(cat, btn) {
 }
 
 function openChannelPicker(slotIdx) {
-  // show a quick overlay — just change to first unloaded channel from current category
   const cat = CHANNELS[activeCat];
   const used = activeChannels.map(c=>c?.url);
   const next = cat.find(c=>!used.includes(c.url));
@@ -815,7 +814,7 @@ function buildChannelLists() {
     const panel = document.getElementById(`chp-${cat}`);
     if(!panel) return;
     panel.innerHTML = '';
-    chs.forEach((ch,i)=>{
+    chs.forEach((ch)=>{
       const item = document.createElement('div');
       item.className = 'ch-item';
       item.innerHTML = `
@@ -831,17 +830,14 @@ function buildChannelLists() {
 
 function addChannelToGrid(chJson) {
   const ch = JSON.parse(chJson);
-  // Replace first empty slot or last
   const emptyIdx = activeChannels.findIndex(c=>c===null||c===undefined);
   if(emptyIdx >= 0) { activeChannels[emptyIdx] = ch; }
   else { activeChannels[activeChannels.length-1] = ch; }
   buildGrid();
 }
 
-// Init TV
 function initTV() {
   buildChannelLists();
-  // Default: 4 channels from TR
   activeChannels = CHANNELS.tr.slice(0,4);
   setGrid_noEvent(4);
 }
@@ -1184,20 +1180,12 @@ function connectSSE(){
   };
 }
 
-// ── INIT ──
-initTV();
-connectSSE();
-setTimeout(updateStats,3000);
-setInterval(updateStats,30000);
-
 // ── API Config Modal ──
 function initApiModal() {
   const saved = localStorage.getItem('vm_api');
   const param = new URLSearchParams(window.location.search).get('api');
-  // If we have a saved/param URL, use it directly
   if (param) { localStorage.setItem('vm_api', param); hideApiModal(); return; }
   if (saved && saved.startsWith('http')) { hideApiModal(); return; }
-  // Otherwise show modal
   document.getElementById('apimodal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('apiurl').focus(), 300);
 }
@@ -1211,10 +1199,8 @@ function saveApiUrl() {
     return;
   }
   localStorage.setItem('vm_api', url);
-  // Update API constant and reload connections
-  window.__API_OVERRIDE = url;
   hideApiModal();
-  location.reload(); // Reload to apply new API URL
+  location.reload();
 }
 function skipApiModal() {
   localStorage.setItem('vm_api', 'http://127.0.0.1:8080');
@@ -1228,46 +1214,13 @@ function resetApiUrl() {
 function setPreset(url) {
   document.getElementById('apiurl').value = url;
 }
-// Show change API button in topbar
-document.getElementById('notbtn').insertAdjacentHTML('afterend',
-  '<button class="tbtn" onclick="document.getElementById(\'apimodal\').classList.remove(\'hidden\')" title="API Adresi Değiştir" style="margin-left:2px">⚙ API</button>'
-);
 
-<!-- ═══ API CONFIG MODAL ═══ -->
-<div id="apimodal">
-  <div class="amodalbox">
-    <h2>🛰 VIEWMONITOR PRO</h2>
-    <p>Backend API adresini girin.<br>
-    <span style="color:var(--green)">Render.com</span> veya yerel sunucu adresi.</p>
-
-    <div class="apresets">
-      <div class="apreset" onclick="setPreset('http://127.0.0.1:8080')">localhost:8080</div>
-      <div class="apreset" onclick="document.getElementById('apiurl').value='https://'">render.com →</div>
-    </div>
-
-    <input class="aurl" id="apiurl" type="text"
-      placeholder="https://viewmonitor-api.onrender.com"
-      autocomplete="off" autocorrect="off" spellcheck="false">
-
-    <div style="margin-top:4px;display:flex;justify-content:center;gap:0;flex-wrap:wrap">
-      <button class="abtn" onclick="saveApiUrl()">✓ BAĞLAN</button>
-      <button class="askip" onclick="skipApiModal()">Yerel kullan (localhost)</button>
-    </div>
-
-    <div class="ainfo">
-      💡 Render.com'da backend deploy ettiysen URL'i kopyala yapıştır.<br>
-      Yerel çalıştırıyorsan "Yerel kullan" butonuna bas.<br>
-      <a href="https://github.com" target="_blank">GitHub</a> ·
-      <a href="https://render.com" target="_blank">Render.com</a> ·
-      <span style="cursor:pointer;color:var(--tdim);text-decoration:underline"
-        onclick="resetApiUrl()">Ayarı sıfırla</span>
-    </div>
-  </div>
-</div>
-  
-// Init on load
+// ── INIT ──
+initTV();
+connectSSE();
 initApiModal();
+setTimeout(updateStats,3000);
+setInterval(updateStats,30000);
 </script>
 </body>
 </html>
-
