@@ -9,8 +9,8 @@ ViewMonitor Pro API v3.3 — Küresel OSINT
   ✔ Telegram 6 saat filtresi
   ✔ Hash-bazlı duplicate kontrolü
 """
-import os
-import asyncio, csv, hashlib, io, json, logging, logging.handlers
+
+import asyncio, csv, hashlib, io, json, logging, logging.handlers, os
 import random
 from collections import deque
 from contextlib import asynccontextmanager
@@ -32,9 +32,9 @@ from langdetect import LangDetectException, detect
 TWITTER_BEARER         = "AAAAAAAAAAAAAAAAAAAAAF7h7wEAAAAAVQgKThE8b8pSB64Tac39ujfTOrY=3unpaziAEF0VoKIusaXkFeeyUbEPmkU9k95hd88yaQOmh9Thle"
 DB_PATH                = os.environ.get("DB_PATH", "/tmp/viewmonitor.db")
 LOG_PATH               = "viewmonitor.log"
-FETCH_INTERVAL         = 8    # saniye — her 8sn yeni kaynak taranır
+FETCH_INTERVAL         = 5    # saniye — her 5sn yeni kaynak taranır (azaltıldı)
 MAX_DB_ROWS            = 8000
-TELEGRAM_MAX_YAS_SAAT  = 6
+TELEGRAM_MAX_YAS_SAAT  = 1    # 6 saat → 1 saat (güncellik için)
 
 # ══════════════════════════════════════════════
 # LOGGING
@@ -486,7 +486,7 @@ def paket(kaynak, orijinal, ceviri, dil, bayrak, tip="rss", link="", kat="") -> 
         "hash": hash_olustur(orijinal), "kaynak": kaynak,
         "mesaj_ceviri": ceviri, "mesaj_orijinal": orijinal,
         "dil_kodu": dil.upper(), "bayrak": bayrak,
-        "zaman": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S"),
+        "zaman": datetime.now().strftime("%H:%M:%S"),
         "ai_tespit": ai, "koordinat": koord, "hedef_isim": hedef,
         "kaynak_tip": tip, "kaynak_kat": kat, "link": link,
         "oncelik": onc, "oncelik_etiket": onc_et,
@@ -514,14 +514,34 @@ async def rss_cek(k: dict) -> Optional[dict]:
             r.raise_for_status()
         feed = feedparser.parse(r.text)
         if not feed.entries: return None
-        havuz = feed.entries[:10]; random.shuffle(havuz)
+
+        # ── Güncellik filtresi: son 2 saat ──
+        sinir = datetime.now(timezone.utc) - timedelta(hours=2)
+
+        # Tarihe göre sırala (en yeni başta), random shuffle kaldırıldı
+        def entry_time(e):
+            for f in ("published_parsed","updated_parsed"):
+                t = e.get(f)
+                if t:
+                    try: return datetime(*t[:6], tzinfo=timezone.utc)
+                    except: pass
+            return datetime.min.replace(tzinfo=timezone.utc)
+
+        havuz = sorted(feed.entries[:15], key=entry_time, reverse=True)
+
         for entry in havuz:
+            # Tarih kontrolü — çok eski haberleri atla
+            et = entry_time(entry)
+            if et != datetime.min.replace(tzinfo=timezone.utc) and et < sinir:
+                continue  # 2 saatten eski, atla
+
             baslik = entry.get("title","").strip()
             ozet   = BeautifulSoup(entry.get("summary",entry.get("description","")),"html.parser").get_text(" ",strip=True)
             link   = entry.get("link","")
             tam    = baslik + (" — " + ozet[:220] if ozet else "")
             if not tam or len(tam) < 10: continue
-            h = hash_olustur(tam)
+            # Hash: başlık + link kombinasyonu (farklı kaynak aynı haber sorununu çözer)
+            h = hash_olustur(baslik + link[:80])
             if h in gecmis_hash: continue
             gecmis_hash.append(h)
             dil = k.get("dil","en")
@@ -545,13 +565,14 @@ async def telegram_cek(kanal: str) -> Optional[dict]:
                     headers={"User-Agent":agent,"Accept-Language":"tr-TR,tr;q=0.9,en;q=0.8"})
                 if r.status_code != 200: continue
             soup = BeautifulSoup(r.text,"html.parser")
-            for msg in reversed(soup.find_all("div",class_="tgme_widget_message")):
-                # Zaman filtresi
+            # En yeni mesajdan başla (reversed → sondan başa = en yeni)
+            mesajlar = soup.find_all("div",class_="tgme_widget_message")
+            for msg in reversed(mesajlar):
                 te = msg.find("time")
                 if te and te.get("datetime"):
                     try:
                         mt = datetime.fromisoformat(te["datetime"].replace("Z","+00:00"))
-                        if mt < sinir: continue
+                        if mt < sinir: continue  # 1 saatten eski, atla
                     except: pass
                 kutu = msg.find("div",class_="tgme_widget_message_text")
                 if not kutu: continue
@@ -570,6 +591,7 @@ async def telegram_cek(kanal: str) -> Optional[dict]:
     return None
 
 async def nitter_cek(username: str) -> Optional[dict]:
+    sinir = datetime.now(timezone.utc) - timedelta(hours=2)
     random.shuffle(NITTER_INSTANCES)
     for inst in NITTER_INSTANCES[:4]:
         try:
@@ -579,8 +601,19 @@ async def nitter_cek(username: str) -> Optional[dict]:
                 if r.status_code != 200: continue
             feed = feedparser.parse(r.text)
             if not feed.entries: continue
-            havuz = feed.entries[:5]; random.shuffle(havuz)
+            # Tarihe göre sırala, random kaldırıldı
+            def entry_time(e):
+                for f in ("published_parsed","updated_parsed"):
+                    t = e.get(f)
+                    if t:
+                        try: return datetime(*t[:6], tzinfo=timezone.utc)
+                        except: pass
+                return datetime.min.replace(tzinfo=timezone.utc)
+            havuz = sorted(feed.entries[:8], key=entry_time, reverse=True)
             for entry in havuz:
+                et = entry_time(entry)
+                if et != datetime.min.replace(tzinfo=timezone.utc) and et < sinir:
+                    continue  # 2 saatten eski tweet atla
                 metin = BeautifulSoup(entry.get("summary",entry.get("title","")),"html.parser").get_text(" ",strip=True)
                 if not metin or len(metin) < 15: continue
                 h = hash_olustur(metin)
@@ -599,7 +632,7 @@ async def gdelt_cek() -> Optional[dict]:
         async with httpx.AsyncClient(timeout=12.0) as c:
             r = await c.get("https://api.gdeltproject.org/api/v2/doc/doc", params={
                 "query":"conflict war attack explosion missile airstrike Israel Gaza Lebanon Ukraine Russia",
-                "mode":"artlist","format":"json","maxrecords":"10","timespan":"1h","sort":"datedesc"})
+                "mode":"artlist","format":"json","maxrecords":"10","timespan":"30min","sort":"datedesc"})
             if r.status_code != 200: return None
         data = r.json(); arts = data.get("articles",[]); random.shuffle(arts)
         for art in arts:
@@ -622,32 +655,36 @@ async def toplu_cek():
     global rss_idx, tg_idx, nt_idx, tw_sayac, gdelt_sayac
     sonuclar = []
 
-    # RSS — 5 kaynak paralel (asyncio.gather ile hızlandırıldı)
+    # RSS — 8 kaynak tam paralel (artırıldı, daha hızlı rotasyon)
     rss_batch = []
-    for _ in range(5):
+    for _ in range(8):
         k = RSS_KAYNAKLARI[rss_idx % len(RSS_KAYNAKLARI)]; rss_idx += 1
         rss_batch.append(rss_cek(k))
     rss_results = await asyncio.gather(*rss_batch, return_exceptions=True)
     for v in rss_results:
         if v and not isinstance(v, Exception): sonuclar.append(v)
 
-    # Telegram — 2 kanal paralel
+    # Telegram — 3 kanal paralel (artırıldı)
     tg_batch = []
-    for _ in range(2):
+    for _ in range(3):
         k = TELEGRAM_KANALLARI[tg_idx % len(TELEGRAM_KANALLARI)]; tg_idx += 1
         tg_batch.append(telegram_cek(k))
     tg_results = await asyncio.gather(*tg_batch, return_exceptions=True)
     for v in tg_results:
         if v and not isinstance(v, Exception): sonuclar.append(v)
 
-    # Nitter/Twitter
-    hesap = NITTER_HESAPLARI[nt_idx % len(NITTER_HESAPLARI)]; nt_idx += 1
-    v = await nitter_cek(hesap)
-    if v: sonuclar.append(v)
+    # Nitter/Twitter — 2 hesap paralel (artırıldı)
+    nt_batch = []
+    for _ in range(2):
+        hesap = NITTER_HESAPLARI[nt_idx % len(NITTER_HESAPLARI)]; nt_idx += 1
+        nt_batch.append(nitter_cek(hesap))
+    nt_results = await asyncio.gather(*nt_batch, return_exceptions=True)
+    for v in nt_results:
+        if v and not isinstance(v, Exception): sonuclar.append(v)
 
-    # GDELT — her 5 döngüde bir
+    # GDELT — her 3 döngüde bir (daha sık, 5→3)
     gdelt_sayac += 1
-    if gdelt_sayac % 5 == 0:
+    if gdelt_sayac % 3 == 0:
         v = await gdelt_cek()
         if v: sonuclar.append(v)
 
@@ -667,7 +704,9 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(toplu_cek,"interval",seconds=FETCH_INTERVAL)
     scheduler.start()
     logger.info("🚀 Scheduler başladı — her %dsn", FETCH_INTERVAL)
-    asyncio.create_task(toplu_cek())
+    # Başlangıçta 3 ardışık çekim yap (feed'i hızla doldur)
+    for _ in range(3):
+        asyncio.create_task(toplu_cek())
     yield
     scheduler.shutdown()
 
@@ -693,7 +732,7 @@ async def sse_stream(request: Request):
     queue: asyncio.Queue = asyncio.Queue()
     sse_clients.append(queue)
     async def gen() -> AsyncGenerator[str,None]:
-        for h in reversed(await db_listele(limit=20)):
+        for h in reversed(await db_listele(limit=10)):
             yield f"data: {json.dumps(h,ensure_ascii=False,default=str)}\n\n"
         try:
             while True:
@@ -769,6 +808,5 @@ if __name__ == "__main__":
 ║  Stream:  http://127.0.0.1:8080/api/stream   ║
 ╚══════════════════════════════════════════════╝
     """)
-    import os
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
