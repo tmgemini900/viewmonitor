@@ -2,12 +2,10 @@ services:
   - type: web
     name: viewmonitor-api
     runtime: python
-    rootDir: backend # Dosyalarınız 'backend' klasörü içindeyse burayı değiştirmeyin.
     buildCommand: pip3 install -r requirements.txt
-    # Sadece bir adet startCommand olmalı, en güncel olanı bıraktım:
     startCommand: uvicorn viewmonitor_api:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/durum # Önceki isteğiniz üzerine eklendi.
+    healthCheckPath: /api/durum
     plan: free
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0 # Buraya kullanmak istediğiniz sürümü atadım.
+        value: 3.11.0
