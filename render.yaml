@@ -2,7 +2,7 @@ services:
   - type: web
     name: viewmonitor-api
     runtime: python
-    buildCommand: pip3 install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn viewmonitor_api:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/durum
     plan: free
