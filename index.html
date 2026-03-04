@@ -1232,10 +1232,6 @@ function setPreset(url) {
 document.getElementById('notbtn').insertAdjacentHTML('afterend',
   '<button class="tbtn" onclick="document.getElementById(\'apimodal\').classList.remove(\'hidden\')" title="API Adresi Değiştir" style="margin-left:2px">⚙ API</button>'
 );
-// Init on load
-initApiModal();
-
-</script>
 
 <!-- ═══ API CONFIG MODAL ═══ -->
 <div id="apimodal">
@@ -1268,6 +1264,10 @@ initApiModal();
     </div>
   </div>
 </div>
-
+  
+// Init on load
+initApiModal();
+</script>
 </body>
 </html>
+
