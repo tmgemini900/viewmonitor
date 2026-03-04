@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ViewMonitor Pro 3.2 — Global OSINT</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#020609;--panel:#050d12;--card:#09151c;--card2:#0d1f2a;
+  --green:#00e5a0;--gdim:#006644;--cyan:#00d4ff;--cdim:#006080;
+  --red:#ff3056;--yellow:#ffe030;--orange:#ff9a00;--purple:#b06eff;
+  --blue:#1d9bf0;
+  --border:rgba(0,229,160,.12);--bhot:rgba(255,48,86,.4);
+  --text:#b8d8cc;--tdim:#3a6050;
+  --mono:'Share Tech Mono',monospace;--sans:'Barlow Condensed',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--green);font-family:var(--mono);
+     display:grid;
+     grid-template-columns:320px 1fr 350px;
+     grid-template-rows:44px 1fr;
+     height:100vh}
+
+/* ─── TOPBAR ─── */
+#topbar{grid-column:1/-1;display:flex;align-items:center;gap:7px;
+        background:#030a0f;border-bottom:1px solid var(--border);padding:0 10px;
+        position:relative;z-index:10}
+.brand{font-family:var(--sans);font-size:1.1rem;font-weight:900;
+       letter-spacing:4px;white-space:nowrap;color:var(--green)}
+.brand em{color:var(--cyan);font-style:normal}
+.tbsep{color:var(--tdim);font-size:.65rem}
+.tstat{font-size:.6rem;color:var(--tdim);white-space:nowrap}
+.tstat b{color:var(--cyan)}
+.tstat.hot b{color:var(--red)}
+.tstat.tw  b{color:var(--blue)}
+.tstat.rd  b{color:var(--purple)}
+.spacer{flex:1}
+.tbtn{background:transparent;border:1px solid var(--border);color:var(--tdim);
+      font-family:var(--mono);font-size:.58rem;padding:3px 8px;cursor:pointer;
+      border-radius:2px;white-space:nowrap;transition:all .15s}
+.tbtn:hover,.tbtn.on{border-color:var(--green);color:var(--green);background:rgba(0,229,160,.05)}
+.tbtn.red:hover,.tbtn.red.on{border-color:var(--red);color:var(--red);background:rgba(255,48,86,.05)}
+.tbtn.ora:hover{border-color:var(--orange);color:var(--orange)}
+#clock{color:var(--yellow);font-size:.85rem;letter-spacing:1px;white-space:nowrap;margin-left:4px}
+#sdot{width:8px;height:8px;border-radius:50%;background:var(--red);
+      display:inline-block;margin-right:4px;transition:all .3s}
+#sdot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+
+/* ─── LEFT PANEL ─── */
+#left{background:var(--panel);border-right:1px solid var(--border);
+      display:flex;flex-direction:column;overflow:hidden}
+.ptabs{display:flex;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.ptab{flex:1;padding:7px 0;background:transparent;border:none;color:var(--tdim);
+      cursor:pointer;font-family:var(--mono);font-size:.55rem;letter-spacing:.5px;
+      text-transform:uppercase;border-bottom:2px solid transparent;transition:all .15s}
+.ptab.on{color:var(--green);border-bottom-color:var(--green)}
+.ptab:hover{color:var(--text)}
+.tpanel{display:none;flex:1;overflow-y:auto;flex-direction:column}
+.tpanel.on{display:flex}
+.tpanel::-webkit-scrollbar{width:3px}
+.tpanel::-webkit-scrollbar-thumb{background:var(--gdim)}
+
+/* ── MULTITV VIDEO GRID ── */
+#tvpanel{display:flex;flex:1;flex-direction:column;overflow:hidden}
+.tv-grid-controls{display:flex;align-items:center;justify-content:space-between;
+  padding:5px 8px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0}
+.tv-grid-controls span{font-size:.58rem;color:var(--tdim)}
+.grid-btns{display:flex;gap:3px}
+.gbtn{background:transparent;border:1px solid var(--border);color:var(--tdim);
+      font-family:var(--mono);font-size:.58rem;padding:2px 7px;cursor:pointer;
+      border-radius:2px;transition:all .12s}
+.gbtn.on,.gbtn:hover{border-color:var(--cyan);color:var(--cyan)}
+#tvgrid{flex:1;display:grid;gap:2px;padding:2px;background:var(--bg);overflow:hidden}
+.vslot{position:relative;background:#000;border:1px solid rgba(0,229,160,.08);
+       border-radius:2px;overflow:hidden;cursor:pointer}
+.vslot:hover{border-color:rgba(0,229,160,.3)}
+.vslot video{width:100%;height:100%;object-fit:cover;display:block}
+.vslot .vlabel{position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));
+  padding:4px 6px 4px;display:flex;align-items:center;justify-content:space-between;
+  pointer-events:none}
+.vslot .vlabel .vname{font-family:var(--sans);font-size:.62rem;font-weight:700;
+  color:#fff;text-shadow:0 1px 3px #000;letter-spacing:.5px}
+.vslot .vlabel .vlive{background:var(--red);color:#fff;font-size:.48rem;
+  padding:1px 4px;border-radius:2px;animation:blink 1.5s infinite;font-weight:700;font-family:var(--sans)}
+.vslot .vmute{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);
+  border:none;color:var(--text);cursor:pointer;font-size:.7rem;
+  padding:2px 4px;border-radius:2px;opacity:0;transition:opacity .2s}
+.vslot:hover .vmute{opacity:1}
+.vslot .vstatus{position:absolute;top:4px;left:4px;font-size:.55rem;color:var(--tdim)}
+.vslot .vflag{position:absolute;top:4px;left:4px;font-size:.85rem}
+.vslot .vload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.6);font-size:.65rem;color:var(--tdim);flex-direction:column;gap:4px}
+.vslot .vload .vload-ico{font-size:1.2rem;animation:pulse 1.5s infinite}
+
+/* Channel selector (below grid) */
+.ch-selector{flex-shrink:0;border-top:1px solid var(--border);background:var(--bg)}
+.ch-tabs{display:flex;gap:0;border-bottom:1px solid var(--border)}
+.ch-tab{flex:1;padding:5px 2px;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--tdim);font-family:var(--mono);font-size:.52rem;cursor:pointer;text-transform:uppercase;
+  letter-spacing:.5px;transition:all .12s}
+.ch-tab.on{color:var(--orange);border-bottom-color:var(--orange)}
+.ch-tab:hover{color:var(--text)}
+.ch-panel{display:none;max-height:130px;overflow-y:auto;padding:4px 0}
+.ch-panel.on{display:block}
+.ch-panel::-webkit-scrollbar{width:3px}
+.ch-panel::-webkit-scrollbar-thumb{background:var(--gdim)}
+.ch-item{display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;
+  transition:background .12s;border-bottom:1px solid rgba(0,229,160,.04)}
+.ch-item:hover{background:rgba(0,229,160,.05)}
+.ch-item .ci-flag{font-size:.85rem;width:20px;text-align:center}
+.ch-item .ci-name{font-family:var(--sans);font-size:.65rem;color:var(--text);
+  font-weight:600;letter-spacing:.5px;flex:1}
+.ch-item .ci-badge{font-size:.52rem;color:var(--tdim);background:var(--card);
+  padding:1px 5px;border-radius:2px;white-space:nowrap}
+.ch-item .ci-add{background:transparent;border:1px solid var(--border);color:var(--tdim);
+  font-size:.55rem;padding:1px 5px;cursor:pointer;border-radius:2px;transition:all .12s}
+.ch-item .ci-add:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* KAMERA PANELİ */
+.cam-card{padding:7px 8px;border-bottom:1px solid var(--border)}
+.cam-frame{width:100%;height:125px;border:1px solid var(--border);border-radius:2px;
+           background:var(--card);display:block}
+.cam-info{font-size:.58rem;color:var(--tdim);margin-top:3px}
+.cam-info b{color:var(--cyan);font-size:.63rem;display:block}
+.cam-link{color:var(--gdim);text-decoration:none;font-size:.56rem}
+.cam-link:hover{color:var(--green)}
+.cam-ext{padding:6px 8px}
+.cam-ext a{display:flex;align-items:center;gap:6px;padding:5px 6px;
+  background:var(--card);border:1px solid var(--border);border-radius:2px;
+  color:var(--text);font-family:var(--sans);font-size:.63rem;text-decoration:none;
+  margin-bottom:4px;transition:all .12s}
+.cam-ext a:hover{border-color:var(--cyan);color:var(--cyan)}
+.cam-ext a span{font-size:.9rem;width:20px;text-align:center}
+
+/* KATMAN PANELİ */
+.lpanel{padding:8px;overflow-y:auto;flex:1}
+.lsec{margin-bottom:12px}
+.lsec h4{font-size:.6rem;color:var(--orange);text-transform:uppercase;
+         letter-spacing:1px;margin-bottom:5px;padding-bottom:3px;
+         border-bottom:1px solid rgba(255,154,0,.15)}
+.lbtn{display:block;width:100%;padding:6px 8px;background:var(--card);
+      border:1px solid var(--border);color:var(--text);font-family:var(--mono);
+      font-size:.62rem;cursor:pointer;margin-bottom:4px;border-radius:2px;
+      text-align:left;transition:all .15s}
+.lbtn:hover,.lbtn.on{border-color:var(--cyan);color:var(--cyan);background:rgba(0,212,255,.04)}
+.lbtn small{color:var(--tdim);font-size:.52rem;display:block;margin-top:1px}
+.watchbox{background:var(--card);border:1px solid var(--border);border-radius:3px;
+          padding:7px;margin-bottom:10px}
+.watchbox h4{font-size:.6rem;color:var(--orange);margin-bottom:5px;
+             text-transform:uppercase;letter-spacing:1px}
+.wkinput{width:100%;background:var(--bg);border:1px solid var(--border);
+         color:var(--green);font-family:var(--mono);font-size:.65rem;
+         padding:4px 7px;border-radius:2px;outline:none}
+.wkinput:focus{border-color:var(--cyan)}
+.kwlist{margin-top:5px;display:flex;flex-wrap:wrap;gap:3px}
+.kwtag{background:rgba(255,154,0,.07);border:1px solid rgba(255,154,0,.35);
+       color:var(--orange);font-size:.56rem;padding:1px 5px;border-radius:2px;
+       cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+.kwtag:hover{background:rgba(255,154,0,.15)}
+
+/* ─── MAP ─── */
+#mapwrap{position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.mctrls{position:absolute;top:10px;right:10px;z-index:1000;
+        display:flex;flex-direction:column;gap:4px;max-width:140px}
+.mbtn{background:rgba(5,13,18,.92);border:1px solid var(--border);color:var(--green);
+      font-family:var(--mono);font-size:.58rem;padding:5px 8px;cursor:pointer;
+      border-radius:2px;white-space:nowrap;transition:all .2s;backdrop-filter:blur(4px)}
+.mbtn:hover,.mbtn.on{border-color:var(--cyan);color:var(--cyan)}
+.mbtn.hot{border-color:rgba(255,154,0,.4);color:var(--orange)}
+.mbtn.hot:hover{border-color:var(--red);color:var(--red)}
+.mhr{border:none;border-top:1px solid var(--border);margin:2px 0}
+.minfo{position:absolute;bottom:10px;left:10px;z-index:1000;
+       background:rgba(5,13,18,.88);border:1px solid var(--border);
+       padding:5px 10px;font-size:.58rem;border-radius:2px;backdrop-filter:blur(4px)}
+.minfo span{color:var(--cyan)}
+
+/* Map overlay modal */
+#mapmodal{display:none;position:absolute;inset:0;z-index:2000;background:rgba(2,6,9,.97);
+          flex-direction:column}
+#mapmodal.show{display:flex}
+.mmodal-head{display:flex;align-items:center;justify-content:space-between;
+             padding:7px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mmodal-head h3{font-family:var(--sans);font-size:.82rem;font-weight:700;letter-spacing:2px}
+.mmodal-head button{background:transparent;border:1px solid var(--border);color:var(--tdim);
+                    cursor:pointer;padding:2px 8px;font-family:var(--mono);font-size:.6rem;border-radius:2px}
+.mmodal-head button:hover{border-color:var(--red);color:var(--red)}
+#mapmodal iframe{flex:1;border:none;width:100%;height:100%}
+
+/* ─── RIGHT PANEL ─── */
+#right{background:var(--panel);border-left:1px solid var(--border);
+       display:flex;flex-direction:column;overflow:hidden}
+.rhead{padding:7px 10px;background:var(--bg);border-bottom:1px solid var(--border);
+       display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.rhead h2{font-family:var(--sans);font-size:.8rem;font-weight:700;letter-spacing:2px;color:var(--green)}
+.rheadbtns{display:flex;gap:3px}
+
+/* Search */
+.sbar{padding:5px 8px;background:var(--bg);border-bottom:1px solid var(--border);
+      display:flex;gap:4px;flex-shrink:0}
+.sinput{flex:1;background:var(--card);border:1px solid var(--border);color:var(--text);
+        font-family:var(--mono);font-size:.65rem;padding:4px 7px;border-radius:2px;outline:none}
+.sinput:focus{border-color:var(--cyan)}
+.sinput::placeholder{color:var(--tdim)}
+
+/* Filters */
+.sfilter{display:flex;gap:3px;padding:5px 8px;background:var(--bg);
+         border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0}
+.ffbtn{padding:2px 6px;background:transparent;border:1px solid var(--border);
+       color:var(--tdim);font-family:var(--mono);font-size:.54rem;cursor:pointer;
+       border-radius:2px;transition:all .12s}
+.ffbtn.on{border-color:var(--gdim);color:var(--green);background:rgba(0,229,160,.06)}
+.ffbtn.on.alarm{border-color:var(--red);color:var(--red);background:rgba(255,48,86,.06)}
+.ffbtn.on.tw{border-color:var(--blue);color:var(--blue);background:rgba(29,155,240,.06)}
+.ffbtn.on.rd{border-color:var(--purple);color:var(--purple)}
+.ffbtn.on.ora{border-color:var(--orange);color:var(--orange)}
+
+/* Feed */
+#feed{flex:1;overflow-y:auto;padding:6px 8px;scroll-behavior:smooth}
+#feed::-webkit-scrollbar{width:4px}
+#feed::-webkit-scrollbar-thumb{background:var(--gdim);border-radius:2px}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--gdim);
+      border-radius:2px;padding:8px 10px;margin-bottom:6px;
+      animation:slideIn .25s ease;transition:border-color .15s,background .15s}
+.card:hover{background:var(--card2)}
+.card.alarm{border-left-color:var(--red);background:rgba(255,48,86,.04);
+            border-color:var(--bhot);box-shadow:0 0 10px rgba(255,48,86,.08)}
+.card.ctg{border-left-color:var(--cyan)}
+.card.ctw{border-left-color:var(--blue)}
+.card.crd{border-left-color:var(--purple)}
+.card.cgd{border-left-color:var(--orange)}
+.card.ckw{border-left-color:var(--yellow)}
+
+.cmeta{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px;gap:4px}
+.cmeta-left{display:flex;align-items:center;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
+.cflag{font-size:.8rem}
+.csrc{font-family:var(--sans);font-weight:700;font-size:.68rem;color:var(--yellow);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px}
+.cbadges{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.ctime{color:var(--tdim);font-size:.55rem;white-space:nowrap}
+.cbadge{font-size:.52rem;padding:1px 4px;border-radius:2px;border:1px solid;font-family:var(--sans);font-weight:600}
+.cbadge.tg    {color:var(--cyan);border-color:var(--cyan)}
+.cbadge.rss   {color:var(--gdim);border-color:var(--gdim)}
+.cbadge.twitter{color:var(--blue);border-color:var(--blue)}
+.cbadge.reddit{color:var(--purple);border-color:var(--purple)}
+.cbadge.gdelt {color:var(--orange);border-color:var(--orange)}
+.cprio{font-size:.5rem;padding:1px 4px;border-radius:2px;font-family:var(--sans);font-weight:700}
+.cprio.KRİTİK{background:rgba(255,48,86,.15);color:var(--red);border:1px solid var(--red)}
+.cprio.YÜKSEK{background:rgba(255,154,0,.1);color:var(--orange);border:1px solid var(--orange)}
+.cprio.ORTA  {background:rgba(255,224,48,.06);color:var(--yellow);border:1px solid rgba(255,224,48,.5)}
+.cprio.DÜŞÜK {color:var(--tdim);border:1px solid rgba(255,255,255,.08)}
+
+.ctrans{color:var(--text);font-size:.76rem;line-height:1.5;display:block;margin-bottom:3px;font-family:var(--sans)}
+.corig {color:var(--tdim);font-size:.58rem;font-style:italic;display:block;
+        border-top:1px solid rgba(255,255,255,.04);padding-top:3px;line-height:1.4}
+.cairlabel{color:var(--red);font-size:.6rem;display:flex;align-items:center;gap:4px;margin-top:4px}
+.cairlabel::before{content:'';width:5px;height:5px;background:var(--red);border-radius:50%;
+                   animation:pulse .8s infinite;display:inline-block;flex-shrink:0}
+.ckwlabel{color:var(--yellow);font-size:.58rem;margin-top:3px}
+.cfoot{display:flex;justify-content:space-between;align-items:center;margin-top:4px;gap:4px}
+.csrclink{color:var(--gdim);font-size:.57rem;text-decoration:none;
+          border:1px solid rgba(0,229,160,.15);padding:1px 6px;border-radius:2px;transition:all .12s}
+.csrclink:hover{color:var(--green);border-color:var(--green)}
+.cmapbtn{background:transparent;border:1px solid rgba(0,212,255,.15);color:var(--tdim);
+         font-family:var(--mono);font-size:.52rem;padding:1px 5px;cursor:pointer;
+         border-radius:2px;transition:all .12s;white-space:nowrap}
+.cmapbtn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* Stats */
+#stats{padding:4px 10px;background:var(--bg);border-top:1px solid var(--border);
+       display:flex;gap:8px;font-size:.56rem;color:var(--tdim);flex-shrink:0;flex-wrap:wrap;
+       align-items:center}
+#stats b{color:var(--green)}
+
+.empty{color:var(--tdim);font-size:.68rem;text-align:center;padding:24px 8px;line-height:2}
+
+/* Search modal */
+#searchmodal{display:none;position:fixed;inset:0;z-index:9000;background:rgba(2,6,9,.96);
+             flex-direction:column}
+#searchmodal.show{display:flex}
+.smhead{display:flex;align-items:center;justify-content:space-between;
+        padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg);flex-shrink:0}
+.smhead h3{font-family:var(--sans);font-size:.88rem;font-weight:700;letter-spacing:2px;color:var(--cyan)}
+.smhead button{background:transparent;border:1px solid var(--border);color:var(--tdim);
+               cursor:pointer;padding:3px 10px;font-family:var(--mono);font-size:.62rem;border-radius:2px}
+.smhead button:hover{border-color:var(--red);color:var(--red)}
+.smbar{padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--border);
+       display:flex;gap:5px;flex-shrink:0}
+.sminput{flex:1;background:var(--card);border:1px solid var(--cyan);color:var(--text);
+         font-family:var(--mono);font-size:.75rem;padding:6px 10px;border-radius:2px;outline:none}
+.smbtn{background:rgba(0,212,255,.1);border:1px solid var(--cyan);color:var(--cyan);
+       font-family:var(--mono);font-size:.62rem;padding:5px 12px;cursor:pointer;border-radius:2px}
+.smbtn:hover{background:rgba(0,212,255,.2)}
+.smresults{flex:1;overflow-y:auto;padding:10px 14px;display:grid;
+           grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:7px;align-content:start}
+.smresults::-webkit-scrollbar{width:4px}
+.smresults::-webkit-scrollbar-thumb{background:var(--gdim)}
+.sminfo{padding:5px 14px;background:var(--bg);border-top:1px solid var(--border);
+        font-size:.6rem;color:var(--tdim);flex-shrink:0}
+
+/* Toasts */
+#toasts{position:fixed;top:50px;right:12px;z-index:9999;display:flex;
+        flex-direction:column;gap:4px;pointer-events:none;max-width:290px}
+.toast{background:var(--card2);border:1px solid var(--red);border-radius:3px;
+       padding:8px 12px;font-size:.68rem;color:var(--text);
+       box-shadow:0 0 16px rgba(255,48,86,.2);animation:slideIn .3s ease;
+       pointer-events:all;font-family:var(--sans)}
+.toast b{color:var(--red);display:block;margin-bottom:1px}
+.toast.info{border-color:var(--cyan)}
+.toast.info b{color:var(--cyan)}
+
+/* Leaflet */
+.leaflet-popup-content-wrapper{background:var(--card2)!important;
+  border:1px solid var(--red)!important;border-radius:3px!important;
+  color:var(--text)!important;font-family:var(--mono)!important;font-size:.72rem!important;
+  box-shadow:0 0 16px rgba(255,48,86,.2)!important}
+.leaflet-popup-tip{background:var(--card2)!important}
+.leaflet-popup-content{color:var(--text)!important}
+.radar{background:transparent;border:2px solid var(--red);border-radius:50%;
+       box-shadow:0 0 20px var(--red);animation:radar 1.5s infinite ease-out}
+.radar-inner{width:10px;height:10px;background:var(--red);border-radius:50%;
+             position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.citymarker{width:7px;height:7px;background:rgba(0,212,255,.7);border-radius:50%;
+            border:1px solid rgba(0,212,255,.4)}
+
+/* Fullscreen */
+body.fsmap #left,body.fsmap #right{display:none}
+body.fsmap{grid-template-columns:0 1fr 0}
+
+/* Animations */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes radar{0%{transform:scale(.1);opacity:1}100%{transform:scale(3);opacity:0}}
+@keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scan{0%{transform:translateY(-100vh)}100%{transform:translateY(100vh)}}
+
+/* Grid FX */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;
+  background-image:linear-gradient(rgba(0,229,160,.012) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,229,160,.012) 1px,transparent 1px);
+  background-size:48px 48px}
+body::after{content:'';position:fixed;top:0;left:0;right:0;height:2px;
+  background:rgba(0,229,160,.06);pointer-events:none;animation:scan 14s linear infinite;z-index:9998}
+#left,#mapwrap,#right,#topbar{position:relative;z-index:2}
+
+/* ── API Config Modal ── */
+#apimodal{position:fixed;inset:0;z-index:99999;background:rgba(2,6,9,.97);
+  display:flex;align-items:center;justify-content:center;flex-direction:column}
+#apimodal.hidden{display:none}
+.amodalbox{background:var(--panel);border:1px solid var(--cyan);border-radius:6px;
+  padding:32px 36px;max-width:520px;width:90%;text-align:center}
+.amodalbox h2{font-family:var(--sans);font-size:1.2rem;font-weight:900;
+  letter-spacing:3px;color:var(--green);margin-bottom:6px}
+.amodalbox p{color:var(--tdim);font-size:.7rem;margin-bottom:20px;line-height:1.7}
+.amodalbox .aurl{width:100%;background:var(--bg);border:1px solid var(--cyan);
+  color:var(--text);font-family:var(--mono);font-size:.78rem;padding:10px 12px;
+  border-radius:4px;outline:none;margin-bottom:12px}
+.amodalbox .abtn{background:rgba(0,229,160,.12);border:1px solid var(--green);
+  color:var(--green);font-family:var(--mono);font-size:.75rem;padding:9px 24px;
+  cursor:pointer;border-radius:4px;transition:all .15s;margin:0 4px}
+.amodalbox .abtn:hover{background:rgba(0,229,160,.22)}
+.amodalbox .askip{background:transparent;border:1px solid var(--tdim);
+  color:var(--tdim);font-family:var(--mono);font-size:.68rem;padding:7px 14px;
+  cursor:pointer;border-radius:4px;transition:all .15s;margin:0 4px}
+.amodalbox .askip:hover{border-color:var(--text);color:var(--text)}
+.amodalbox .apresets{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:14px}
+.amodalbox .apreset{background:var(--card);border:1px solid var(--border);
+  color:var(--tdim);font-family:var(--mono);font-size:.58rem;padding:3px 8px;
+  cursor:pointer;border-radius:3px;transition:all .12s}
+.amodalbox .apreset:hover{border-color:var(--cyan);color:var(--cyan)}
+.amodalbox .ainfo{font-size:.6rem;color:var(--tdim);margin-top:10px;line-height:1.6}
+.amodalbox .ainfo a{color:var(--cyan);text-decoration:none}
+.amodalbox .ainfo a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<header id="topbar">
+  <div class="brand">VIEW<em>MONITOR</em> <span style="font-size:.55rem;color:var(--tdim);font-weight:400;letter-spacing:1px">PRO 3.2</span></div>
+  <div class="tbsep">|</div>
+  <span id="sdot"></span>
+  <span id="bstat" style="font-size:.6rem;color:var(--tdim)">BAĞLANIYOR</span>
+  <div class="tbsep">|</div>
+  <div class="tstat">HABER: <b id="tc">0</b></div>
+  <div class="tstat hot">⚠ <b id="ac">0</b></div>
+  <div class="tstat tw">𝕏 <b id="twc">0</b></div>
+  <div class="tstat rd">RDT <b id="rdc">0</b></div>
+  <div class="tstat" style="color:var(--tdim)">TG <b id="tgc" style="color:var(--cyan)">0</b></div>
+  <div class="spacer"></div>
+  <button class="tbtn" onclick="openSearchModal()">🔍 ARAMA</button>
+  <button class="tbtn ora" onclick="openMapModal('ucus')">✈ UÇUŞ</button>
+  <button class="tbtn ora" onclick="openMapModal('gemi')">🚢 GEMİ</button>
+  <button class="tbtn red" onclick="openMapModal('catisma')">⚔ ÇATIŞMA</button>
+  <button class="tbtn red" onclick="openMapModal('ukrayna')">🇺🇦 CEPHE</button>
+  <button class="tbtn" onclick="exportYap('json')">⬇ JSON</button>
+  <button class="tbtn" onclick="exportYap('csv')">⬇ CSV</button>
+  <button class="tbtn" onclick="toggleFSMap()" id="fsbtn">⛶</button>
+  <button class="tbtn" onclick="reqNotif()" id="notbtn">🔔</button>
+  <div id="clock">--:--:--</div>
+</header>
+
+<!-- ═══ LEFT PANEL ═══ -->
+<aside id="left">
+  <div class="ptabs">
+    <button class="ptab on" onclick="ptab('tv',this)">📺 TV</button>
+    <button class="ptab" onclick="ptab('cam',this)">📷 KAMERA</button>
+    <button class="ptab" onclick="ptab('layer',this)">🗺 KATMAN</button>
+  </div>
+
+  <!-- TV PANEL -->
+  <div id="tab-tv" class="tpanel on" style="overflow:hidden">
+    <div id="tvpanel">
+      <!-- Grid controls -->
+      <div class="tv-grid-controls">
+        <span>CANLI YAYIN</span>
+        <div class="grid-btns">
+          <button class="gbtn" onclick="setGrid(1)" title="1 kanal">1</button>
+          <button class="gbtn on" onclick="setGrid(4)" title="2×2">4</button>
+          <button class="gbtn" onclick="setGrid(9)" title="3×3">9</button>
+        </div>
+      </div>
+
+      <!-- Video grid — slots filled by JS -->
+      <div id="tvgrid"></div>
+
+      <!-- Channel selector -->
+      <div class="ch-selector">
+        <div class="ch-tabs">
+          <button class="ch-tab on" onclick="chTab('tr',this)">🇹🇷 TR</button>
+          <button class="ch-tab" onclick="chTab('int',this)">🌍 DÜNYA</button>
+          <button class="ch-tab" onclick="chTab('me',this)">⚔ ORTA DOĞU</button>
+          <button class="ch-tab" onclick="chTab('asia',this)">🌏 ASYA</button>
+        </div>
+        <div id="chp-tr" class="ch-panel on"></div>
+        <div id="chp-int" class="ch-panel"></div>
+        <div id="chp-me" class="ch-panel"></div>
+        <div id="chp-asia" class="ch-panel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KAMERA PANELİ -->
+  <div id="tab-cam" class="tpanel">
+    <div class="cam-card">
+      <iframe class="cam-frame" src="https://trafik.ibb.gov.tr/" title="İBB Trafik" allowfullscreen></iframe>
+      <div class="cam-info">
+        <b>📍 İSTANBUL — İBB TRAFİK</b>
+        Gerçek zamanlı trafik kameraları
+        <br><a class="cam-link" href="https://trafik.ibb.gov.tr" target="_blank">↗ Tam ekran</a>
+      </div>
+    </div>
+    <div class="cam-card">
+      <iframe class="cam-frame"
+        src="https://embed.windy.com/embed2.html?lat=39&lon=35&zoom=5&level=surface&overlay=wind&product=ecmwf&menu=false&message=true&type=map&metricWind=km%2Fh&metricTemp=%C2%B0C"
+        title="Windy TR" allowfullscreen></iframe>
+      <div class="cam-info">
+        <b>🌬 HAVA / RÜZGAR — TÜRKİYE</b>
+        Windy.com ECMWF gerçek zamanlı
+      </div>
+    </div>
+    <div class="cam-ext">
+      <a href="https://kgm.gov.tr/sayfalar/kgm/trafikkamera.aspx" target="_blank">
+        <span>🛣</span>KGM Otoyol Kameraları (Tüm Türkiye)
+      </a>
+      <a href="https://www.earthcam.com/world/turkey/istanbul/" target="_blank">
+        <span>🌆</span>İstanbul EarthCam
+      </a>
+      <a href="https://www.skylinewebcams.com/en/webcam/turkey.html" target="_blank">
+        <span>📷</span>Türkiye Web Kameraları
+      </a>
+      <a href="https://zoom.earth" target="_blank">
+        <span>🛰</span>Zoom.Earth Uydu Görüntüsü
+      </a>
+      <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank">
+        <span>🛰</span>Sentinel Hub — EO Browser
+      </a>
+      <a href="https://www.earthcam.com/world/israel/" target="_blank">
+        <span>🇮🇱</span>İsrail EarthCam
+      </a>
+      <a href="https://www.earthcam.com/world/ukraine/" target="_blank">
+        <span>🇺🇦</span>Ukrayna EarthCam
+      </a>
+      <a href="https://www.insecam.org/en/bycountry/TR/" target="_blank">
+        <span>📡</span>Türkiye IP Kamera Listesi
+      </a>
+    </div>
+  </div>
+
+  <!-- KATMAN PANELİ -->
+  <div id="tab-layer" class="tpanel">
+    <div class="lpanel">
+      <div class="watchbox">
+        <h4>🔍 KELİME TAKİP</h4>
+        <input class="wkinput" id="kwinput" type="text" placeholder="Kelime + Enter ekle..." autocomplete="off">
+        <div class="kwlist" id="kwlist"></div>
+      </div>
+      <div class="lsec">
+        <h4>🗺 Harita Katmanı</h4>
+        <button class="lbtn on" id="lb-dark"    onclick="setTile('dark',this)">🌑 Karanlık (OSINT)<small>CartoDB Dark Matter</small></button>
+        <button class="lbtn"   id="lb-sat"      onclick="setTile('sat',this)">🛰 Uydu<small>Esri WorldImagery</small></button>
+        <button class="lbtn"   id="lb-hybrid"   onclick="setTile('hybrid',this)">🌐 Hibrit<small>Uydu + Etiket</small></button>
+        <button class="lbtn"   id="lb-terrain"  onclick="setTile('terrain',this)">🏔 Arazi<small>CartoDB Voyager</small></button>
+      </div>
+      <div class="lsec">
+        <h4>✈ Canlı Trafik</h4>
+        <button class="lbtn" onclick="openMapModal('ucus')">✈ Uçuş — ADS-B Exchange<small>Gerçek zamanlı transponder verisi</small></button>
+        <button class="lbtn" onclick="openMapModal('gemi')">🚢 Gemi — MarineTraffic AIS<small>Küresel deniz trafiği</small></button>
+        <button class="lbtn" onclick="openMapModal('uydu')">🛰 Uydu Takibi — N2YO<small>ISS, COSMOS, askeri uydu</small></button>
+      </div>
+      <div class="lsec">
+        <h4>⚔ Çatışma & Kriz</h4>
+        <button class="lbtn" onclick="openMapModal('catisma')">🔴 LiveUAMap — Canlı Çatışma<small>Dünya geneli olaylar</small></button>
+        <button class="lbtn" onclick="openMapModal('ukrayna')">🇺🇦 DeepStateMap — Ukrayna<small>Gerçek zamanlı cephe hattı</small></button>
+        <button class="lbtn" onclick="openMapModal('acled')">📍 ACLED Veri Paneli<small>Global çatışma istatistiği</small></button>
+      </div>
+      <div class="lsec">
+        <h4>🌬 Hava & Çevre</h4>
+        <button class="lbtn" onclick="setWind('wind')">💨 Rüzgar Akışı<small>Windy ECMWF</small></button>
+        <button class="lbtn" onclick="setWind('rain')">🌧 Yağış Radarı</button>
+        <button class="lbtn" onclick="setWind('clouds')">☁ Bulut — Uydu</button>
+      </div>
+      <iframe id="windyframe" src="" style="display:none;width:100%;height:200px;border:1px solid var(--border);border-radius:2px;margin-top:6px" frameborder="0"></iframe>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAP ═══ -->
+<div id="mapwrap">
+  <div id="map"></div>
+  <div class="mctrls">
+    <button class="mbtn on" id="mb-dark"    onclick="setTile('dark',null)">🌑 KARANLIK</button>
+    <button class="mbtn"    id="mb-sat"     onclick="setTile('sat',null)">🛰 UYDU</button>
+    <button class="mbtn"    id="mb-hybrid"  onclick="setTile('hybrid',null)">🌐 HİBRİT</button>
+    <button class="mbtn"    id="mb-terrain" onclick="setTile('terrain',null)">🏔 ARAZİ</button>
+    <div class="mhr"></div>
+    <button class="mbtn" onclick="showAllTargets()">🎯 TÜM HEDEF</button>
+    <button class="mbtn" id="mb-cities" onclick="toggleCities()">🏙 ŞEHİR</button>
+    <button class="mbtn" onclick="clearAlarms()">🗑 ALM. TEMİZLE</button>
+    <div class="mhr"></div>
+    <button class="mbtn hot" onclick="openMapModal('catisma')">⚔ ÇATIŞMA</button>
+    <button class="mbtn hot" onclick="openMapModal('ucus')">✈ UÇUŞ</button>
+    <button class="mbtn hot" onclick="openMapModal('gemi')">🚢 GEMİ</button>
+    <div class="mhr"></div>
+    <button class="mbtn" onclick="mapReset()">↩ SIFIRLA</button>
+  </div>
+  <div class="minfo">
+    KAT: <span id="mi-kat">KARANLIK</span> &nbsp;|&nbsp;
+    HEDEF: <span id="mi-hedef">—</span> &nbsp;|&nbsp;
+    SSE: <span id="mi-sse" style="color:var(--tdim)">—</span>
+  </div>
+  <!-- Map modal -->
+  <div id="mapmodal">
+    <div class="mmodal-head">
+      <h3 id="mmodal-title">CANLI HARİTA</h3>
+      <button onclick="closeMapModal()">✕ KAPAT</button>
+    </div>
+    <iframe id="mmodal-iframe" src="" allowfullscreen></iframe>
+  </div>
+</div>
+
+<!-- ═══ RIGHT PANEL ═══ -->
+<aside id="right">
+  <div class="rhead">
+    <h2>🧠 İSTİHBARAT AKIŞI</h2>
+    <div class="rheadbtns">
+      <button class="tbtn" onclick="clearFeed()">SİL</button>
+      <button class="tbtn" onclick="manuelCek()">⟳</button>
+    </div>
+  </div>
+  <div class="sbar">
+    <input class="sinput" id="sinput" type="text" placeholder="Haber ara... (Enter)">
+    <button class="tbtn" onclick="openSearchModal()" style="white-space:nowrap">🔍 ARA</button>
+  </div>
+  <div class="sfilter">
+    <button class="ffbtn on"   id="f-all"    onclick="setFilter('all')">TÜMÜ</button>
+    <button class="ffbtn"      id="f-rss"    onclick="setFilter('rss')">RSS</button>
+    <button class="ffbtn"      id="f-tg"     onclick="setFilter('tg')">TG</button>
+    <button class="ffbtn tw"   id="f-twitter" onclick="setFilter('twitter')">𝕏</button>
+    <button class="ffbtn rd"   id="f-reddit"  onclick="setFilter('reddit')">RDT</button>
+    <button class="ffbtn ora"  id="f-gdelt"   onclick="setFilter('gdelt')">GDELT</button>
+    <button class="ffbtn alarm" id="f-alarm"  onclick="setFilter('alarm')">🔴 ALARM</button>
+  </div>
+  <div id="feed">
+    <div class="empty">
+      <div style="font-size:1.4rem;margin-bottom:8px">🛰</div>
+      SSE bağlantısı bekleniyor...<br>
+      <span style="color:var(--gdim);font-size:.6rem">127.0.0.1:8080/api/stream</span>
+    </div>
+  </div>
+  <div id="stats">
+    <span>SON: <b id="st-son">—</b></span>
+    <span>KAYNAK: <b id="st-kaynak">—</b></span>
+    <span>DB: <b id="st-db">—</b></span>
+    <span>PİNG: <b id="st-ping">—</b>ms</span>
+  </div>
+</aside>
+
+<!-- Search modal -->
+<div id="searchmodal">
+  <div class="smhead">
+    <h3>🔍 HABER ARAMA — ANA AKIŞ DEVAM EDİYOR</h3>
+    <button onclick="closeSearchModal()">✕ KAPAT</button>
+  </div>
+  <div class="smbar">
+    <input class="sminput" id="sminput" type="text" placeholder="Arama terimi...">
+    <button class="smbtn" onclick="doSearch()">ARA</button>
+  </div>
+  <div class="smresults" id="smresults">
+    <div style="color:var(--tdim);font-size:.7rem;padding:20px;grid-column:1/-1">
+      Arama yapın — ana akış arka planda çalışmaya devam eder.
+    </div>
+  </div>
+  <div class="sminfo" id="sminfo">Ana veri akışı çalışıyor.</div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+'use strict';
+// ── API URL Konfigürasyonu ──
+// Öncelik sırası:
+// 1. URL parametresi: ?api=https://...
+// 2. localStorage'da kayıtlı adres
+// 3. Aynı makinede localhost:8080
+// 4. Aynı ağda aynı host:8080
+(function(){
+  const _p = new URLSearchParams(window.location.search);
+  let savedApi = localStorage.getItem('vm_api');
+  let API_URL = _p.get('api') || savedApi ||
+    ((['localhost','127.0.0.1'].includes(window.location.hostname))
+      ? 'http://127.0.0.1:8080'
+      : null);
+  window._vmApiResolved = API_URL;
+})();
+const API = window._vmApiResolved || 'http://127.0.0.1:8080';
+console.log('🛰 ViewMonitor API:', API);
+const MAX_CARDS = 150;
+
+// ── Clock ──
+setInterval(()=>{
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},1000);
+
+// ── Channel definitions ──
+const CHANNELS = {
+  tr:[
+    {flag:'🇹🇷',name:'TRT HABER',     url:'https://tv-trthaber.medya.trt.com.tr/master.m3u8'},
+    {flag:'🇹🇷',name:'TRT WORLD',     url:'https://tv-trtworld.live.trt.com.tr/master.m3u8'},
+    {flag:'🇹🇷',name:'TRT 1',         url:'https://tv-trt1.live.trt.com.tr/master_720.m3u8'},
+    {flag:'🇹🇷',name:'TGRT HABER',    url:'https://canli.tgrthaber.com/tgrt.m3u8'},
+    {flag:'🇹🇷',name:'HABERTüRK',     url:'https://ciner-live.daioncdn.net/haberturktv/haberturktv.m3u8'},
+    {flag:'🇹🇷',name:'HABER GLOBAL',  url:'https://mn-nl.mncdn.com/blutv_haberglobal2/live.m3u8'},
+    {flag:'🇹🇷',name:'HALK TV',       url:'https://halktv-live.ercdn.net/halktv/halktv.m3u8'},
+    {flag:'🇹🇷',name:'360 TV',        url:'https://turkmedya-live.ercdn.net/tv360/tv360.m3u8'},
+    {flag:'🇹🇷',name:'CNN TÜRK',      url:'https://www.youtube.com/embed/yHrENzzF2GU?autoplay=1&mute=1',yt:true},
+    {flag:'🇹🇷',name:'NTV',           url:'https://www.youtube.com/embed/Vm9-LzMNUuM?autoplay=1&mute=1',yt:true},
+    {flag:'🇹🇷',name:'A HABER',       url:'https://www.youtube.com/embed/4kK3aY3snAk?autoplay=1&mute=1',yt:true},
+    {flag:'🇹🇷',name:'BLOOMBERG HT',  url:'https://www.youtube.com/embed/BFxfxg2VFjk?autoplay=1&mute=1',yt:true},
+  ],
+  int:[
+    {flag:'🌍',name:'AL JAZEERA EN', url:'https://live-hls-web-aje.getaj.net/AJE/index.m3u8'},
+    {flag:'🇫🇷',name:'FRANCE 24',    url:'https://static.france24.com/live/F24_EN_HI_HLS/live_tv.m3u8'},
+    {flag:'🇩🇪',name:'DW NEWS',      url:'https://dwamdstream102.akamaized.net/hls/live/2015533/dwstream102/index.m3u8'},
+    {flag:'🇯🇵',name:'NHK WORLD',    url:'https://nhkworldjp-nhkwjp-1-jl.rakuten.wurl.com/manifest/playlist.m3u8'},
+    {flag:'🇨🇳',name:'CGTN',         url:'https://news.cgtn.com/resource/live/english/cgtn-news.m3u8'},
+    {flag:'🇺🇸',name:'PBS NEWSHOUR', url:'https://www.youtube.com/embed/nPYHKCpTWPE?autoplay=1&mute=1',yt:true},
+    {flag:'🇬🇧',name:'BBC WORLD',    url:'https://www.youtube.com/embed/w_Ma8oQLmSM?autoplay=1&mute=1',yt:true},
+    {flag:'🇷🇺',name:'RT NEWS',      url:'https://www.youtube.com/embed/ImoNuiCIYPQ?autoplay=1&mute=1',yt:true},
+  ],
+  me:[
+    {flag:'🌍',name:'AL JAZEERA AR', url:'https://live-hls-web-aja.getaj.net/AJA/index.m3u8'},
+    {flag:'🇸🇦',name:'AL ARABIYA',  url:'https://live.alarabiya.net/alarabiapublish/alarabiya.smil/playlist.m3u8'},
+    {flag:'🇮🇷',name:'PRESS TV',    url:'https://www.youtube.com/embed/RIBHHRMQkBg?autoplay=1&mute=1',yt:true},
+    {flag:'🌍',name:'SKY NEWS AR',   url:'https://www.youtube.com/embed/y49OuKBFkBM?autoplay=1&mute=1',yt:true},
+    {flag:'🌍',name:'MIDDLE EAST EYE',url:'https://www.youtube.com/embed/EtZJpnpg-aI?autoplay=1&mute=1',yt:true},
+    {flag:'🇮🇱',name:'I24 NEWS',    url:'https://www.youtube.com/embed/JpOoPnAnOSo?autoplay=1&mute=1',yt:true},
+    {flag:'🇮🇱',name:'CHANNEL 12',  url:'https://www.youtube.com/embed/s_Gb10HZPME?autoplay=1&mute=1',yt:true},
+    {flag:'🌍',name:'IRAN INTL',     url:'https://www.youtube.com/embed/QQZB-kLuU8k?autoplay=1&mute=1',yt:true},
+  ],
+  asia:[
+    {flag:'🇨🇳',name:'CGTN ARABIC',  url:'https://www.youtube.com/embed/HFnSdE4PuAk?autoplay=1&mute=1',yt:true},
+    {flag:'🇰🇷',name:'ARIRANG NEWS', url:'https://www.youtube.com/embed/h3MuIUNCCLI?autoplay=1&mute=1',yt:true},
+    {flag:'🇮🇳',name:'INDIA TODAY',  url:'https://www.youtube.com/embed/PTSQKwNz7rM?autoplay=1&mute=1',yt:true},
+    {flag:'🇮🇳',name:'NDTV 24x7',   url:'https://www.youtube.com/embed/5As6HUfU3hE?autoplay=1&mute=1',yt:true},
+    {flag:'🇵🇰',name:'GEO NEWS',     url:'https://www.youtube.com/embed/wV_iLLPJzDk?autoplay=1&mute=1',yt:true},
+    {flag:'🇹🇼',name:'TAIWAN+ NEWS', url:'https://www.youtube.com/embed/lW2lBuuRW6s?autoplay=1&mute=1',yt:true},
+    {flag:'🇦🇺',name:'SKY NEWS AU',  url:'https://www.youtube.com/embed/MWMHXXPLWl4?autoplay=1&mute=1',yt:true},
+  ],
+};
+
+// ── Active grid state ──
+let gridSize = 4;
+let activeChannels = [0,1,2,3].map(i=>CHANNELS.tr[i]);
+let hlsInstances = {};
+let activeCat = 'tr';
+
+function setGrid(n) {
+  gridSize = n;
+  document.querySelectorAll('.gbtn').forEach(b=>b.classList.remove('on'));
+  event.target.classList.add('on');
+  buildGrid();
+}
+
+function buildGrid() {
+  const grid = document.getElementById('tvgrid');
+  // cleanup
+  Object.values(hlsInstances).forEach(h=>{try{h.destroy()}catch(e){}});
+  hlsInstances = {};
+  grid.innerHTML = '';
+
+  const cols = gridSize === 1 ? 1 : gridSize === 4 ? 2 : 3;
+  grid.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+
+  // fill up to gridSize slots
+  const chList = activeChannels.slice(0, gridSize);
+  while(chList.length < gridSize) chList.push(null);
+
+  chList.forEach((ch, idx) => {
+    const slot = document.createElement('div');
+    slot.className = 'vslot';
+    slot.id = `vslot-${idx}`;
+
+    if (!ch) {
+      slot.innerHTML = `<div class="vload"><div class="vload-ico">+</div><div style="font-size:.55rem;color:var(--tdim)">Kanal seç</div></div>`;
+      slot.style.cursor = 'pointer';
+      slot.onclick = () => openChannelPicker(idx);
+      grid.appendChild(slot);
+      return;
+    }
+
+    const vid = ch.yt
+      ? `<iframe src="${ch.url}&enablejsapi=1" style="width:100%;height:100%;border:none;display:block" allow="autoplay;encrypted-media" allowfullscreen></iframe>`
+      : `<video id="vid-${idx}" muted autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:block"></video>`;
+
+    slot.innerHTML = `
+      ${vid}
+      <div class="vload" id="vload-${idx}" style="${ch.yt?'display:none':''}">
+        <div class="vload-ico">📡</div>
+        <div style="font-size:.55rem;color:var(--tdim)">Bağlanıyor...</div>
+      </div>
+      <div class="vlabel">
+        <span class="vname">${ch.flag} ${ch.name}</span>
+        <span class="vlive">CANLI</span>
+      </div>
+      <button class="vmute" onclick="toggleMute(${idx},this)" title="Ses">${ch.yt?'🔊':'🔇'}</button>
+    `;
+    grid.appendChild(slot);
+
+    if (!ch.yt) {
+      // small delay to stagger
+      setTimeout(()=>loadHLS(idx, ch.url), idx * 500);
+    }
+  });
+}
+
+function loadHLS(idx, url, retry=0) {
+  const vEl = document.getElementById(`vid-${idx}`);
+  const ld  = document.getElementById(`vload-${idx}`);
+  if (!vEl) return;
+
+  if (Hls.isSupported()) {
+    const h = new Hls({lowLatencyMode:true, maxBufferLength:8,
+      startLevel:2, capLevelToPlayerSize:true});
+    h.loadSource(url);
+    h.attachMedia(vEl);
+    h.on(Hls.Events.MANIFEST_PARSED, ()=>{
+      if(ld) ld.style.display='none';
+      vEl.play().catch(()=>{});
+    });
+    h.on(Hls.Events.ERROR, (_,d)=>{
+      if(d.fatal && retry<4) setTimeout(()=>loadHLS(idx,url,retry+1), 8000*(retry+1));
+    });
+    hlsInstances[idx] = h;
+  } else if (vEl.canPlayType('application/vnd.apple.mpegurl')) {
+    vEl.src = url;
+    if(ld) ld.style.display='none';
+    vEl.play().catch(()=>{});
+  }
+}
+
+function toggleMute(idx, btn) {
+  const vEl = document.getElementById(`vid-${idx}`);
+  if (vEl) { vEl.muted = !vEl.muted; btn.textContent = vEl.muted ? '🔇' : '🔊'; }
+}
+
+function chTab(cat, btn) {
+  activeCat = cat;
+  document.querySelectorAll('.ch-tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.ch-panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById(`chp-${cat}`).classList.add('on');
+}
+
+function openChannelPicker(slotIdx) {
+  // show a quick overlay — just change to first unloaded channel from current category
+  const cat = CHANNELS[activeCat];
+  const used = activeChannels.map(c=>c?.url);
+  const next = cat.find(c=>!used.includes(c.url));
+  if (next) { activeChannels[slotIdx] = next; buildGrid(); }
+}
+
+function buildChannelLists() {
+  Object.entries(CHANNELS).forEach(([cat, chs])=>{
+    const panel = document.getElementById(`chp-${cat}`);
+    if(!panel) return;
+    panel.innerHTML = '';
+    chs.forEach((ch,i)=>{
+      const item = document.createElement('div');
+      item.className = 'ch-item';
+      item.innerHTML = `
+        <span class="ci-flag">${ch.flag}</span>
+        <span class="ci-name">${ch.name}</span>
+        <span class="ci-badge">${ch.yt?'YT':'HLS'}</span>
+        <button class="ci-add" onclick="addChannelToGrid(${JSON.stringify(JSON.stringify(ch))})">+ EKLE</button>
+      `;
+      panel.appendChild(item);
+    });
+  });
+}
+
+function addChannelToGrid(chJson) {
+  const ch = JSON.parse(chJson);
+  // Replace first empty slot or last
+  const emptyIdx = activeChannels.findIndex(c=>c===null||c===undefined);
+  if(emptyIdx >= 0) { activeChannels[emptyIdx] = ch; }
+  else { activeChannels[activeChannels.length-1] = ch; }
+  buildGrid();
+}
+
+// Init TV
+function initTV() {
+  buildChannelLists();
+  // Default: 4 channels from TR
+  activeChannels = CHANNELS.tr.slice(0,4);
+  setGrid_noEvent(4);
+}
+
+function setGrid_noEvent(n) {
+  gridSize = n;
+  document.querySelectorAll('.gbtn').forEach((b,i)=>{
+    b.classList.toggle('on', [1,4,9][i]===n);
+  });
+  buildGrid();
+}
+
+// ── MAP ──
+const map = L.map('map',{center:[38.5,34],zoom:4,zoomControl:true,attributionControl:false});
+const tiles = {
+  dark:    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}),
+  sat:     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}),
+  terrain: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19}),
+  hybrid:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}),
+};
+const labelLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',{maxZoom:19,pane:'shadowPane'});
+tiles.dark.addTo(map);
+let activeTile = 'dark';
+
+function setTile(name, sideBtn) {
+  if(activeTile===name) return;
+  map.removeLayer(tiles[activeTile]);
+  if(activeTile==='hybrid') try{map.removeLayer(labelLayer)}catch(e){}
+  tiles[name].addTo(map);
+  if(name==='hybrid') labelLayer.addTo(map);
+  activeTile = name;
+  ['dark','sat','hybrid','terrain'].forEach(t=>{
+    ['lb-'+t,'mb-'+t].forEach(id=>{
+      const b=document.getElementById(id); if(b) b.classList.toggle('on',t===name);
+    });
+  });
+  document.getElementById('mi-kat').textContent = name.toUpperCase();
+}
+
+const radarIcon = L.divIcon({className:'radar',iconSize:[40,40],iconAnchor:[20,20],html:'<div class="radar-inner"></div>'});
+const cityIcon  = L.divIcon({className:'citymarker',iconSize:[7,7],iconAnchor:[3,3]});
+const alarmGroup = L.layerGroup().addTo(map);
+const cityGroup  = L.layerGroup();
+let citiesOn=false, allAlarms=[];
+
+async function loadLocations(){
+  try{
+    const r=await fetch(API+'/api/lokasyonlar');
+    const d=await r.json();
+    Object.entries(d.lokasyonlar||{}).forEach(([name,v])=>{
+      L.marker(v.koordinat,{icon:cityIcon}).addTo(cityGroup)
+       .bindTooltip(name.toUpperCase(),{direction:'top'});
+    });
+  }catch(e){}
+}
+loadLocations();
+
+function toggleCities(){
+  citiesOn=!citiesOn;
+  citiesOn?cityGroup.addTo(map):map.removeLayer(cityGroup);
+  document.getElementById('mb-cities').classList.toggle('on',citiesOn);
+}
+function addAlarmMarker(v){
+  const m=L.marker(v.koordinat,{icon:radarIcon}).addTo(alarmGroup);
+  m.bindPopup(`
+    <b style="color:var(--red)">⚠ HEDEF KİLİTLENDİ</b><br>
+    <b>${v.hedef_isim}</b><br>
+    <span style="color:#777;font-size:.62rem">${v.kaynak} — ${v.zaman}</span><br>
+    <hr style="border-color:#222;margin:4px 0">
+    <span style="font-size:.7rem">${(v.mesaj_ceviri||'').substring(0,140)}…</span>
+    ${v.link?`<br><a href="${v.link}" target="_blank" style="color:var(--cyan);font-size:.6rem">↗ Kaynak</a>`:''}
+  `).openPopup();
+  allAlarms.push(v.koordinat);
+  document.getElementById('mi-hedef').textContent=v.hedef_isim;
+  map.flyTo(v.koordinat,7,{animate:true,duration:1.8});
+}
+function showAllTargets(){
+  if(allAlarms.length){
+    const g=L.featureGroup(allAlarms.map(c=>L.marker(c)));
+    map.fitBounds(g.getBounds(),{padding:[50,50]});
+  }
+}
+function clearAlarms(){alarmGroup.clearLayers();allAlarms=[];document.getElementById('mi-hedef').textContent='—';}
+function mapReset(){map.flyTo([38.5,34],4,{animate:true,duration:1.5});}
+function gotoMap(coordStr,name){
+  const c=JSON.parse(coordStr);
+  map.flyTo(c,8,{animate:true,duration:1.5});
+  document.getElementById('mi-hedef').textContent=name;
+}
+
+// Map modal
+const MODAL_URLS={
+  ucus:'https://globe.adsbexchange.com/?lat=38&lon=35&zoom=5',
+  gemi:'https://www.marinetraffic.com/en/ais/embed/zoom:5/centery:37/centerx:33/maptype:0/shownames:false/mmsi:0/shipid:0/fleet:/fleet_id:/vtypes:/showmenu:false/remember:false',
+  catisma:'https://liveuamap.com/',
+  ukrayna:'https://deepstatemap.live/en',
+  uydu:'https://www.n2yo.com/',
+  acled:'https://acleddata.com/dashboard/',
+};
+const MODAL_TITLES={
+  ucus:'✈ CANLI UÇUŞ — ADS-B Exchange',
+  gemi:'🚢 CANLI GEMİ — MarineTraffic AIS',
+  catisma:'⚔ CANLI ÇATIŞMA — LiveUAMap',
+  ukrayna:'🇺🇦 UKRAYNA CEPHESİ — DeepStateMap',
+  uydu:'🛰 UYDU TAKİP — N2YO',
+  acled:'📍 ACLED VERİ PANELİ',
+};
+function openMapModal(key){
+  document.getElementById('mmodal-title').textContent=MODAL_TITLES[key]||key;
+  document.getElementById('mmodal-iframe').src=MODAL_URLS[key]||'';
+  document.getElementById('mapmodal').classList.add('show');
+}
+function closeMapModal(){
+  document.getElementById('mapmodal').classList.remove('show');
+  document.getElementById('mmodal-iframe').src='';
+}
+
+function setWind(lay){
+  const f=document.getElementById('windyframe');
+  f.style.display='block';
+  f.src=`https://embed.windy.com/embed2.html?lat=39&lon=35&zoom=4&level=surface&overlay=${lay}&product=ecmwf&menu=false&message=true&type=map&metricWind=km%2Fh&metricTemp=%C2%B0C`;
+}
+
+// ── KEYWORD WATCHLIST ──
+let keywords=[];
+try{keywords=JSON.parse(localStorage.getItem('vm_kw')||'["saldırı","patlama","breaking","war","füze","airstrike"]');}catch(e){}
+function renderKW(){
+  const el=document.getElementById('kwlist');
+  el.innerHTML='';
+  keywords.forEach(kw=>{
+    const s=document.createElement('span');
+    s.className='kwtag';
+    s.innerHTML=`${kw} <span onclick="removeKW('${kw}')">✕</span>`;
+    el.appendChild(s);
+  });
+}
+function removeKW(kw){keywords=keywords.filter(k=>k!==kw);localStorage.setItem('vm_kw',JSON.stringify(keywords));renderKW();}
+document.getElementById('kwinput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    const v=e.target.value.trim().toLowerCase();
+    if(v&&!keywords.includes(v)){keywords.push(v);localStorage.setItem('vm_kw',JSON.stringify(keywords));renderKW();}
+    e.target.value='';
+  }
+});
+renderKW();
+function kwMatch(t){return keywords.some(kw=>(t||'').toLowerCase().includes(kw.toLowerCase()));}
+
+// ── COUNTERS ──
+let tc=0,ac=0,twc=0,rdc=0,tgc=0;
+function incrCounter(tip){
+  tc++;document.getElementById('tc').textContent=tc;
+  if(tip==='twitter'){twc++;document.getElementById('twc').textContent=twc;}
+  if(tip==='reddit') {rdc++;document.getElementById('rdc').textContent=rdc;}
+  if(tip==='tg')     {tgc++;document.getElementById('tgc').textContent=tgc;}
+}
+
+// ── CARD BUILDER ──
+function mkCard(m){
+  const tip=m.kaynak_tip||'rss';
+  const alarm=m.ai_tespit;
+  const kw=kwMatch((m.mesaj_ceviri||'')+(m.mesaj_orijinal||''));
+  const prio=m.oncelik_etiket||'DÜŞÜK';
+  let cls=tip==='tg'?'ctg':tip==='twitter'?'ctw':tip==='reddit'?'crd':tip==='gdelt'?'cgd':'';
+  if(alarm) cls='alarm'; else if(kw) cls+=(' ckw');
+  const tipbadge=`<span class="cbadge ${tip==='twitter'?'twitter':tip}">${tip==='twitter'?'𝕏':tip.toUpperCase()}</span>`;
+  const priobadge=`<span class="cprio ${prio}">${prio}</span>`;
+  const srclink=m.link&&m.link.startsWith('http')?`<a class="csrclink" href="${m.link}" target="_blank" rel="noopener">↗ KAYNAK</a>`:`<span style="color:var(--tdim);font-size:.57rem">—</span>`;
+  const mapbtn=m.koordinat?`<button class="cmapbtn" onclick='gotoMap(${JSON.stringify(JSON.stringify(m.koordinat))},"${(m.hedef_isim||'').replace(/"/g,"'")})")'>📍 HARİTA</button>`:'';
+  const aiLbl=alarm?`<div class="cairlabel">KİLİTLENDİ — ${m.hedef_isim}</div>`:'';
+  const kwLbl=(kw&&!alarm)?`<div class="ckwlabel">🔍 ${keywords.filter(k=>(m.mesaj_ceviri+m.mesaj_orijinal).toLowerCase().includes(k)).join(', ')}</div>`:'';
+  return `<div class="card ${cls}" data-tip="${tip}" data-alarm="${alarm?'1':'0'}">
+    <div class="cmeta">
+      <div class="cmeta-left"><span class="cflag">${m.bayrak||'🌍'}</span><span class="csrc">${m.kaynak||''}</span></div>
+      <div class="cbadges">${tipbadge}${priobadge}<span class="ctime">${m.zaman||''}</span></div>
+    </div>
+    <span class="ctrans">${m.mesaj_ceviri||''}</span>
+    <span class="corig">${(m.mesaj_orijinal||'').substring(0,200)}${(m.mesaj_orijinal||'').length>200?'…':''}</span>
+    ${aiLbl}${kwLbl}
+    <div class="cfoot">${srclink}${mapbtn}</div>
+  </div>`;
+}
+
+// ── FILTER ──
+let activeFilter='all';
+function setFilter(tip){
+  activeFilter=tip;
+  document.querySelectorAll('.ffbtn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('f-'+tip).classList.add('on');
+  document.querySelectorAll('#feed .card').forEach(c=>{
+    const ct=c.dataset.tip,al=c.dataset.alarm==='1';
+    c.style.display=(tip==='all'||tip===ct||(tip==='alarm'&&al))?'':'none';
+  });
+}
+function clearFeed(){
+  document.getElementById('feed').innerHTML='';
+  tc=ac=twc=rdc=tgc=0;
+  ['tc','ac','twc','rdc','tgc'].forEach(id=>document.getElementById(id).textContent='0');
+}
+
+// ── LEFT PANEL TABS ──
+function ptab(id,btn){
+  document.querySelectorAll('.tpanel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  btn.classList.add('on');
+  if(id==='tv') setTimeout(()=>map.invalidateSize(),100);
+}
+
+// ── SEARCH MODAL ──
+function openSearchModal(){
+  document.getElementById('searchmodal').classList.add('show');
+  const q=document.getElementById('sinput').value.trim();
+  if(q){document.getElementById('sminput').value=q;doSearch();}
+  else setTimeout(()=>document.getElementById('sminput').focus(),100);
+}
+function closeSearchModal(){document.getElementById('searchmodal').classList.remove('show');}
+document.getElementById('sminput').addEventListener('keydown',e=>{
+  if(e.key==='Enter') doSearch();
+  if(e.key==='Escape') closeSearchModal();
+});
+document.getElementById('sinput').addEventListener('keydown',e=>{if(e.key==='Enter') openSearchModal();});
+
+async function doSearch(){
+  const q=document.getElementById('sminput').value.trim();
+  if(!q)return;
+  const box=document.getElementById('smresults'),info=document.getElementById('sminfo');
+  box.innerHTML='<div style="color:var(--tdim);padding:16px;grid-column:1/-1">Aranıyor...</div>';
+  try{
+    const r=await fetch(`${API}/api/ara?q=${encodeURIComponent(q)}`);
+    const d=await r.json();
+    info.textContent=`"${q}" için ${d.adet} sonuç. Ana akış etkilenmedi.`;
+    box.innerHTML=d.sonuclar.length?d.sonuclar.map(mkCard).join('')
+      :'<div style="color:var(--tdim);padding:16px;grid-column:1/-1">Sonuç bulunamadı.</div>';
+  }catch(e){
+    box.innerHTML='<div style="color:var(--red);padding:16px;grid-column:1/-1">Bağlantı hatası.</div>';
+  }
+}
+
+// ── EXPORT ──
+function exportYap(fmt){window.open(`${API}/api/export?format=${fmt}&limit=1000`,'_blank');}
+
+// ── FULLSCREEN ──
+function toggleFSMap(){
+  document.body.classList.toggle('fsmap');
+  document.getElementById('fsbtn').classList.toggle('on');
+  setTimeout(()=>map.invalidateSize(),300);
+}
+
+// ── TOAST ──
+function toast(title,body,type='danger'){
+  const t=document.createElement('div');
+  t.className='toast'+(type==='info'?' info':'');
+  t.innerHTML=`<b>${title}</b>${(body||'').substring(0,120)}`;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>t.remove(),5500);
+}
+
+// ── NOTIFICATION & SOUND ──
+let notifOn=false;
+async function reqNotif(){
+  if(!('Notification' in window)) return;
+  const p=await Notification.requestPermission();
+  notifOn=p==='granted';
+  if(notifOn){document.getElementById('notbtn').textContent='🔔 AKTİF';document.getElementById('notbtn').classList.add('on');}
+}
+function pushNotif(t,b){if(notifOn) new Notification(t,{body:b});}
+function beep(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.type='sine';o.frequency.value=880;
+    g.gain.setValueAtTime(.2,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.45);
+    o.start();o.stop(ctx.currentTime+.45);
+  }catch(e){}
+}
+
+// ── MANUEL ──
+async function manuelCek(){
+  try{await fetch(API+'/api/tetikle',{method:'POST'});toast('BİLGİ','Manuel çekim başlatıldı.','info');}catch(e){}
+}
+
+// ── DB STAT ──
+async function updateStats(){
+  try{
+    const r=await fetch(API+'/api/durum');
+    const d=await r.json();
+    document.getElementById('st-db').textContent=d.db?.toplam||'—';
+  }catch(e){}
+}
+
+// ── SSE ──
+let sseRetry=0;
+function connectSSE(){
+  const t0=performance.now();
+  const es=new EventSource(`${API}/api/stream`);
+  document.getElementById('mi-sse').textContent='BAĞLANIYOR';
+  document.getElementById('mi-sse').style.color='var(--yellow)';
+  es.onopen=()=>{
+    document.getElementById('sdot').className='on';
+    document.getElementById('bstat').textContent='CANLI';
+    document.getElementById('mi-sse').textContent='CANLI';
+    document.getElementById('mi-sse').style.color='var(--green)';
+    document.getElementById('st-ping').textContent=Math.round(performance.now()-t0);
+    sseRetry=0;
+  };
+  es.onmessage=evt=>{
+    try{
+      const m=JSON.parse(evt.data);
+      if(m.ping) return;
+      const feed=document.getElementById('feed');
+      if(feed.querySelector('.empty')) feed.innerHTML='';
+      document.getElementById('st-son').textContent=new Date().toLocaleTimeString('tr-TR');
+      document.getElementById('st-kaynak').textContent=m.kaynak||'—';
+      incrCounter(m.kaynak_tip);
+      if(m.ai_tespit){
+        ac++;document.getElementById('ac').textContent=ac;
+        addAlarmMarker(m);beep();
+        toast('⚠ '+m.hedef_isim,m.mesaj_ceviri);
+        pushNotif('⚠ ViewMonitor: '+m.hedef_isim,m.mesaj_ceviri);
+      }
+      if(kwMatch((m.mesaj_ceviri||'')+(m.mesaj_orijinal||''))&&!m.ai_tespit)
+        toast('🔍 KELİME',m.mesaj_ceviri,'info');
+      feed.insertAdjacentHTML('afterbegin',mkCard(m));
+      if(activeFilter!=='all') setFilter(activeFilter);
+      const cards=feed.querySelectorAll('.card');
+      if(cards.length>MAX_CARDS) cards[cards.length-1].remove();
+      updateStats();
+    }catch(e){}
+  };
+  es.onerror=()=>{
+    es.close();
+    document.getElementById('sdot').className='';
+    document.getElementById('bstat').textContent='KESİLDİ';
+    document.getElementById('mi-sse').textContent='KESİLDİ';
+    document.getElementById('mi-sse').style.color='var(--red)';
+    const wait=Math.min(4000*Math.pow(1.8,sseRetry++),90000);
+    setTimeout(connectSSE,wait);
+  };
+}
+
+// ── INIT ──
+initTV();
+connectSSE();
+setTimeout(updateStats,3000);
+setInterval(updateStats,30000);
+
+// ── API Config Modal ──
+function initApiModal() {
+  const saved = localStorage.getItem('vm_api');
+  const param = new URLSearchParams(window.location.search).get('api');
+  // If we have a saved/param URL, use it directly
+  if (param) { localStorage.setItem('vm_api', param); hideApiModal(); return; }
+  if (saved && saved.startsWith('http')) { hideApiModal(); return; }
+  // Otherwise show modal
+  document.getElementById('apimodal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('apiurl').focus(), 300);
+}
+function hideApiModal() {
+  document.getElementById('apimodal').classList.add('hidden');
+}
+function saveApiUrl() {
+  const url = document.getElementById('apiurl').value.trim().replace(/\/$/, '');
+  if (!url.startsWith('http')) {
+    document.getElementById('apiurl').style.borderColor='var(--red)';
+    return;
+  }
+  localStorage.setItem('vm_api', url);
+  // Update API constant and reload connections
+  window.__API_OVERRIDE = url;
+  hideApiModal();
+  location.reload(); // Reload to apply new API URL
+}
+function skipApiModal() {
+  localStorage.setItem('vm_api', 'http://127.0.0.1:8080');
+  hideApiModal();
+  location.reload();
+}
+function resetApiUrl() {
+  localStorage.removeItem('vm_api');
+  location.reload();
+}
+function setPreset(url) {
+  document.getElementById('apiurl').value = url;
+}
+// Show change API button in topbar
+document.getElementById('notbtn').insertAdjacentHTML('afterend',
+  '<button class="tbtn" onclick="document.getElementById(\'apimodal\').classList.remove(\'hidden\')" title="API Adresi Değiştir" style="margin-left:2px">⚙ API</button>'
+);
+// Init on load
+initApiModal();
+
+</script>
+
+<!-- ═══ API CONFIG MODAL ═══ -->
+<div id="apimodal">
+  <div class="amodalbox">
+    <h2>🛰 VIEWMONITOR PRO</h2>
+    <p>Backend API adresini girin.<br>
+    <span style="color:var(--green)">Render.com</span> veya yerel sunucu adresi.</p>
+
+    <div class="apresets">
+      <div class="apreset" onclick="setPreset('http://127.0.0.1:8080')">localhost:8080</div>
+      <div class="apreset" onclick="document.getElementById('apiurl').value='https://'">render.com →</div>
+    </div>
+
+    <input class="aurl" id="apiurl" type="text"
+      placeholder="https://viewmonitor-api.onrender.com"
+      autocomplete="off" autocorrect="off" spellcheck="false">
+
+    <div style="margin-top:4px;display:flex;justify-content:center;gap:0;flex-wrap:wrap">
+      <button class="abtn" onclick="saveApiUrl()">✓ BAĞLAN</button>
+      <button class="askip" onclick="skipApiModal()">Yerel kullan (localhost)</button>
+    </div>
+
+    <div class="ainfo">
+      💡 Render.com'da backend deploy ettiysen URL'i kopyala yapıştır.<br>
+      Yerel çalıştırıyorsan "Yerel kullan" butonuna bas.<br>
+      <a href="https://github.com" target="_blank">GitHub</a> ·
+      <a href="https://render.com" target="_blank">Render.com</a> ·
+      <span style="cursor:pointer;color:var(--tdim);text-decoration:underline"
+        onclick="resetApiUrl()">Ayarı sıfırla</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
