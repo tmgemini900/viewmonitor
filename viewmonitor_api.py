@@ -1,4 +1,3 @@
-import os
 """
 ViewMonitor Pro API v3.3 — Küresel OSINT
 ══════════════════════════════════════════
@@ -10,7 +9,7 @@ ViewMonitor Pro API v3.3 — Küresel OSINT
   ✔ Telegram 6 saat filtresi
   ✔ Hash-bazlı duplicate kontrolü
 """
-
+import os
 import asyncio, csv, hashlib, io, json, logging, logging.handlers
 import random
 from collections import deque
