@@ -1,3 +1,4 @@
+import os
 """
 ViewMonitor Pro API v3.3 — Küresel OSINT
 ══════════════════════════════════════════
