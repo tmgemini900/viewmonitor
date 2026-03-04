@@ -486,7 +486,7 @@ def paket(kaynak, orijinal, ceviri, dil, bayrak, tip="rss", link="", kat="") -> 
         "hash": hash_olustur(orijinal), "kaynak": kaynak,
         "mesaj_ceviri": ceviri, "mesaj_orijinal": orijinal,
         "dil_kodu": dil.upper(), "bayrak": bayrak,
-        "zaman": datetime.now().strftime("%H:%M:%S"),
+        "zaman": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S"),
         "ai_tespit": ai, "koordinat": koord, "hedef_isim": hedef,
         "kaynak_tip": tip, "kaynak_kat": kat, "link": link,
         "oncelik": onc, "oncelik_etiket": onc_et,
