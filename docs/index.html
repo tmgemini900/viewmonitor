@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>ViewMonitor Pro — Global OSINT Ağı</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep:#020408; --bg-panel:#060c10; --bg-card:#0b1318; --bg-card2:#0e1922;
+            --green:#00e5a0; --green-dim:#007a54; --red:#ff2d55; --yellow:#ffd60a;
+            --cyan:#00cfff; --purple:#b06eff;
+            --border:rgba(0,229,160,0.15); --border-hot:rgba(255,45,85,0.4);
+            --text:#c8ddd5; --text-dim:#4a6055;
+            --mono:'Share Tech Mono',monospace; --sans:'Rajdhani',sans-serif;
+        }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body {
+            background:var(--bg-deep); color:var(--green); font-family:var(--mono);
+            height:100vh; display:grid;
+            grid-template-columns:300px 1fr 320px;
+            grid-template-rows:42px 1fr;
+            overflow:hidden;
+        }
+        /* TOP BAR */
+        #topbar {
+            grid-column:1/-1; display:flex; align-items:center;
+            justify-content:space-between; background:#040a0d;
+            border-bottom:1px solid var(--border); padding:0 16px;
+            font-family:var(--sans); font-size:0.78rem;
+        }
+        #topbar .brand { font-size:1rem; font-weight:700; color:var(--green); letter-spacing:2px; }
+        #topbar .brand span { color:var(--cyan); }
+        #topbar .stats { display:flex; gap:18px; color:var(--text-dim); }
+        #topbar .stats b { color:var(--cyan); }
+        #clock { color:var(--yellow); font-family:var(--mono); font-size:0.9rem; }
+        #status-dot { width:8px; height:8px; border-radius:50%; background:var(--green); display:inline-block; margin-right:6px; box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
+
+        /* CONFIG MODAL */
+        #config-modal {
+            position:fixed; inset:0; background:rgba(0,0,0,0.85);
+            display:flex; align-items:center; justify-content:center;
+            z-index:9999; backdrop-filter:blur(4px);
+        }
+        #config-box {
+            background:var(--bg-panel); border:1px solid var(--green);
+            border-radius:6px; padding:32px; width:420px;
+            box-shadow:0 0 40px rgba(0,229,160,0.15);
+        }
+        #config-box h2 { font-family:var(--sans); font-size:1.1rem; letter-spacing:2px; margin-bottom:20px; color:var(--green); }
+        .cfg-label { font-size:0.7rem; color:var(--text-dim); margin-bottom:4px; text-transform:uppercase; letter-spacing:1px; }
+        .cfg-input {
+            width:100%; padding:8px 12px; background:var(--bg-card2);
+            border:1px solid var(--border); color:var(--text);
+            font-family:var(--mono); font-size:0.82rem; border-radius:3px; margin-bottom:14px;
+        }
+        .cfg-input:focus { outline:none; border-color:var(--green); }
+        .cfg-btn {
+            width:100%; padding:10px; background:var(--green); color:#000;
+            font-family:var(--sans); font-weight:700; font-size:0.9rem;
+            border:none; border-radius:3px; cursor:pointer; letter-spacing:1px;
+        }
+        .cfg-btn:hover { background:#00ffb3; }
+        .cfg-note { font-size:0.65rem; color:var(--text-dim); text-align:center; margin-top:10px; }
+
+        /* LEFT PANEL */
+        #kamera-paneli { background:var(--bg-panel); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+        .panel-tabs { display:flex; border-bottom:1px solid var(--border); background:var(--bg-deep); flex-shrink:0; }
+        .tab-btn { flex:1; padding:8px 4px; background:transparent; border:none; color:var(--text-dim); cursor:pointer; font-family:var(--mono); font-size:0.65rem; letter-spacing:1px; text-transform:uppercase; border-bottom:2px solid transparent; transition:all 0.2s; }
+        .tab-btn.aktif { color:var(--green); border-bottom-color:var(--green); background:rgba(0,229,160,0.04); }
+        .tab-panel { display:none; flex:1; overflow-y:auto; padding:10px; }
+        .tab-panel.aktif { display:block; }
+        .tab-panel::-webkit-scrollbar { width:3px; }
+        .tab-panel::-webkit-scrollbar-thumb { background:var(--green-dim); }
+        .video-kutu { margin-bottom:12px; }
+        .video-kutu iframe { width:100%; height:168px; border:1px solid var(--border); border-radius:3px; display:block; }
+        .kamera-isim { font-size:0.65rem; color:var(--text-dim); margin-top:3px; display:flex; justify-content:space-between; align-items:center; }
+        .live-badge { background:var(--red); color:#fff; font-size:0.55rem; padding:1px 5px; border-radius:2px; animation:blink 1.2s infinite; font-family:var(--sans); font-weight:700; }
+        .webcam-card { background:var(--bg-card); border:1px solid var(--border); border-radius:4px; margin-bottom:10px; overflow:hidden; }
+        .webcam-info { padding:6px 8px; font-size:0.65rem; color:var(--text-dim); }
+        .webcam-info b { color:var(--cyan); display:block; font-size:0.7rem; }
+        .uydu-btn { display:block; width:100%; padding:8px 12px; background:var(--bg-card); border:1px solid var(--border); color:var(--text); font-family:var(--mono); font-size:0.72rem; cursor:pointer; margin-bottom:8px; border-radius:3px; text-align:left; transition:all 0.2s; }
+        .uydu-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+        .uydu-btn small { color:var(--text-dim); font-size:0.6rem; display:block; margin-top:2px; }
+        .layer-toggle-group { margin-bottom:12px; }
+        .layer-toggle-group h4 { font-size:0.7rem; color:var(--green-dim); margin-bottom:6px; text-transform:uppercase; letter-spacing:1px; }
+
+        /* MAP */
+        #harita-wrap { position:relative; overflow:hidden; }
+        #harita { width:100%; height:100%; }
+        #harita-controls { position:absolute; top:10px; right:10px; z-index:1000; display:flex; flex-direction:column; gap:6px; }
+        .map-ctrl-btn { background:rgba(6,12,16,0.92); border:1px solid var(--border); color:var(--green); font-family:var(--mono); font-size:0.65rem; padding:5px 10px; cursor:pointer; border-radius:3px; white-space:nowrap; transition:all 0.2s; backdrop-filter:blur(4px); }
+        .map-ctrl-btn:hover, .map-ctrl-btn.aktif { border-color:var(--cyan); color:var(--cyan); }
+        #harita-info { position:absolute; bottom:10px; left:10px; z-index:1000; background:rgba(6,12,16,0.88); border:1px solid var(--border); padding:8px 12px; font-size:0.65rem; border-radius:3px; backdrop-filter:blur(4px); }
+        #harita-info span { color:var(--cyan); }
+
+        /* RIGHT PANEL */
+        #veri-paneli { background:var(--bg-panel); border-left:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden; }
+        .panel-header { padding:10px 14px; background:var(--bg-deep); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+        .panel-header h2 { font-family:var(--sans); font-size:0.8rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--green); }
+        #source-filter { display:flex; gap:4px; padding:8px 14px; background:var(--bg-deep); border-bottom:1px solid var(--border); flex-wrap:wrap; flex-shrink:0; }
+        .src-btn { padding:2px 8px; background:transparent; border:1px solid var(--border); color:var(--text-dim); font-family:var(--mono); font-size:0.6rem; cursor:pointer; border-radius:2px; transition:all 0.15s; }
+        .src-btn.on { background:rgba(0,229,160,0.1); border-color:var(--green-dim); color:var(--green); }
+        .src-btn.on.red { background:rgba(255,45,85,0.1); border-color:var(--red); color:var(--red); }
+        #akis-sahnesi { flex:1; overflow-y:auto; padding:10px 12px; scroll-behavior:smooth; }
+        #akis-sahnesi::-webkit-scrollbar { width:4px; }
+        #akis-sahnesi::-webkit-scrollbar-thumb { background:var(--green-dim); border-radius:2px; }
+        .haber-karti { background:var(--bg-card); border:1px solid var(--border); border-left:3px solid var(--green-dim); border-radius:3px; padding:10px 12px; margin-bottom:10px; font-size:0.78rem; animation:slideIn 0.3s ease; }
+        .haber-karti.ai-alarm { border-left-color:var(--red); background:#120409; border-color:var(--border-hot); box-shadow:0 0 12px rgba(255,45,85,0.1); }
+        .haber-karti.rss-source { border-left-color:var(--purple); }
+        .haber-karti.tr-source { border-left-color:var(--cyan); }
+        .kart-meta { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:4px; }
+        .kaynak-etiket { font-family:var(--sans); font-weight:700; font-size:0.72rem; color:var(--yellow); }
+        .dil-bayrak { font-size:0.9rem; margin-right:4px; }
+        .zaman-damgasi { color:var(--text-dim); font-size:0.62rem; }
+        .kaynak-tip { font-size:0.6rem; padding:1px 5px; border-radius:2px; border:1px solid; }
+        .kaynak-tip.tg { color:var(--cyan); border-color:var(--cyan); }
+        .kaynak-tip.rss { color:var(--purple); border-color:var(--purple); }
+        .cevirilmis-metin { color:var(--text); font-size:0.82rem; line-height:1.5; display:block; margin-bottom:6px; font-family:var(--sans); }
+        .orijinal-metin { color:var(--text-dim); font-size:0.65rem; font-style:italic; display:block; border-top:1px solid rgba(255,255,255,0.05); padding-top:5px; line-height:1.4; }
+        .ai-etiket { color:var(--red); font-weight:bold; display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.7rem; }
+        .ai-etiket::before { content:''; width:6px; height:6px; background:var(--red); border-radius:50%; animation:pulse 0.8s infinite; display:inline-block; }
+        .haber-link { color:var(--green-dim); font-size:0.65rem; text-decoration:none; display:inline-block; margin-top:4px; }
+        .haber-link:hover { color:var(--green); }
+        #istatistik { padding:6px 14px; background:var(--bg-deep); border-top:1px solid var(--border); display:flex; gap:16px; font-size:0.62rem; color:var(--text-dim); flex-shrink:0; flex-wrap:wrap; }
+        #istatistik b { color:var(--green); }
+        .hedef-radar { background:transparent; border:2px solid var(--red); border-radius:50%; box-shadow:0 0 20px var(--red); animation:radar 1.5s infinite ease-out; }
+        .hedef-marker-inner { width:10px; height:10px; background:var(--red); border-radius:50%; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+        .bos-durum { color:var(--text-dim); font-size:0.75rem; text-align:center; padding:30px 10px; line-height:1.8; }
+        .leaflet-popup-content-wrapper { background:var(--bg-card2)!important; border:1px solid var(--red)!important; border-radius:4px!important; color:var(--text)!important; font-family:var(--mono)!important; font-size:0.78rem!important; box-shadow:0 0 20px rgba(255,45,85,0.3)!important; }
+        .leaflet-popup-tip { background:var(--bg-card2)!important; }
+        .leaflet-popup-content { color:var(--text)!important; }
+        #cfg-toggle { background:transparent; border:1px solid var(--border); color:var(--text-dim); font-family:var(--mono); font-size:0.62rem; padding:2px 8px; cursor:pointer; border-radius:2px; }
+        #cfg-toggle:hover { border-color:var(--cyan); color:var(--cyan); }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.5;transform:scale(1.3);} }
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+        @keyframes radar { 0%{transform:scale(0.1);opacity:1;} 100%{transform:scale(2.8);opacity:0;} }
+        @keyframes slideIn { from{opacity:0;transform:translateY(-8px);} to{opacity:1;transform:translateY(0);} }
+        @keyframes scanline { 0%{transform:translateY(-100%);} 100%{transform:translateY(100vh);} }
+        body::after { content:''; position:fixed; top:0; left:0; right:0; height:2px; background:rgba(0,229,160,0.04); pointer-events:none; animation:scanline 8s linear infinite; z-index:9999; }
+        body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,229,160,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.015) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:1; }
+        #topbar,#kamera-paneli,#harita-wrap,#veri-paneli { position:relative; z-index:2; }
+    </style>
+</head>
+<body>
+
+<!-- CONFIG MODAL -->
+<div id="config-modal">
+    <div id="config-box">
+        <h2>⚙ VIEWMONITOR PRO — BAĞLANTI AYARI</h2>
+        <div class="cfg-label">API Sunucu Adresi</div>
+        <input class="cfg-input" id="cfg-url" type="text" placeholder="https://sunucuadresiniz.com" />
+        <div class="cfg-label">API Key (yoksa boş bırakın)</div>
+        <input class="cfg-input" id="cfg-key" type="password" placeholder="İsteğe bağlı — X-API-Key" />
+        <button class="cfg-btn" onclick="baglantiKaydet()">BAĞLAN &amp; BAŞLAT</button>
+        <p class="cfg-note">
+            Ayarlar tarayıcıda saklanır. Localhost için: <code>http://127.0.0.1:8000</code>
+        </p>
+    </div>
+</div>
+
+<!-- TOP BAR -->
+<header id="topbar">
+    <div class="brand">VIEW<span>MONITOR</span> <small style="font-size:0.6rem;color:var(--text-dim);font-weight:400;">PRO v2.1</small></div>
+    <div class="stats">
+        <span><span id="status-dot"></span><span id="baglanti-durum">BAĞLANIYOR...</span></span>
+        <span>HABERLER: <b id="toplam-haber">0</b></span>
+        <span>ALARMLAR: <b id="toplam-alarm" style="color:var(--red)">0</b></span>
+        <span id="api-ping">GECİKME: <b>—</b></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <button id="cfg-toggle" onclick="configAc()">⚙ AYARLAR</button>
+        <div id="clock">--:--:--</div>
+    </div>
+</header>
+
+<!-- LEFT -->
+<aside id="kamera-paneli">
+    <div class="panel-tabs">
+        <button class="tab-btn aktif" onclick="sekmeAc('tv',this)">📺 TV</button>
+        <button class="tab-btn" onclick="sekmeAc('sehir',this)">🏙 ŞEHİR</button>
+        <button class="tab-btn" onclick="sekmeAc('uydu',this)">🛰 UYDU</button>
+    </div>
+    <div id="tab-tv" class="tab-panel aktif">
+        <div class="video-kutu">
+            <iframe src="https://www.youtube.com/embed/gCNeDWCI0vo?autoplay=1&mute=1&rel=0" frameborder="0" allowfullscreen></iframe>
+            <div class="kamera-isim"><span>&gt; AL JAZEERA</span><span class="live-badge">CANLI</span></div>
+        </div>
+        <div class="video-kutu">
+            <iframe src="https://www.youtube.com/embed/vOTiJkg1voo?autoplay=1&mute=1&rel=0" frameborder="0" allowfullscreen></iframe>
+            <div class="kamera-isim"><span>&gt; TRT HABER</span><span class="live-badge">CANLI</span></div>
+        </div>
+        <div class="video-kutu">
+            <iframe src="https://www.youtube.com/embed/F5GaUGJBFhk?autoplay=1&mute=1&rel=0" frameborder="0" allowfullscreen></iframe>
+            <div class="kamera-isim"><span>&gt; CNN TÜRK</span><span class="live-badge">CANLI</span></div>
+        </div>
+        <div class="video-kutu">
+            <iframe src="https://www.youtube.com/embed/xRPjKQtRXR8?autoplay=1&mute=1&rel=0" frameborder="0" allowfullscreen></iframe>
+            <div class="kamera-isim"><span>&gt; NASA UZAY</span><span class="live-badge">CANLI</span></div>
+        </div>
+        <div class="video-kutu">
+            <iframe src="https://www.youtube.com/embed/1jwq8G0Nh-s?autoplay=1&mute=1&rel=0" frameborder="0" allowfullscreen></iframe>
+            <div class="kamera-isim"><span>&gt; FRANCE 24</span><span class="live-badge">CANLI</span></div>
+        </div>
+    </div>
+    <div id="tab-sehir" class="tab-panel">
+        <div class="webcam-card">
+            <iframe src="https://www.youtube.com/embed/Bwv2N1bHsv4?autoplay=1&mute=1&rel=0" frameborder="0" style="width:100%;height:140px;border:none;display:block;" allowfullscreen></iframe>
+            <div class="webcam-info"><b>📍 İSTANBUL — Boğaziçi</b>Köprü canlı kamera</div>
+        </div>
+        <div class="webcam-card">
+            <iframe src="https://www.youtube.com/embed/ydYDqZQpim8?autoplay=1&mute=1&rel=0" frameborder="0" style="width:100%;height:140px;border:none;display:block;" allowfullscreen></iframe>
+            <div class="webcam-info"><b>📍 TIMES SQUARE — NY</b>Global referans</div>
+        </div>
+        <div class="webcam-card">
+            <iframe src="https://www.youtube.com/embed/1EiC9bvVGnk?autoplay=1&mute=1&rel=0" frameborder="0" style="width:100%;height:140px;border:none;display:block;" allowfullscreen></iframe>
+            <div class="webcam-info"><b>📍 TOKYO — Shibuya</b>Japonya referans</div>
+        </div>
+    </div>
+    <div id="tab-uydu" class="tab-panel">
+        <div class="layer-toggle-group">
+            <h4>🗺 Harita Katmanı</h4>
+            <button class="uydu-btn" onclick="katmanDegistir('dark')"><div>🌑 Karanlık (OSINT)</div><small>CartoDB Dark Matter</small></button>
+            <button class="uydu-btn" onclick="katmanDegistir('satellite')"><div>🛰 Uydu Görüntüsü</div><small>Esri WorldImagery</small></button>
+            <button class="uydu-btn" onclick="katmanDegistir('terrain')"><div>🏔 Arazi / Topografik</div><small>CartoDB Voyager</small></button>
+            <button class="uydu-btn" onclick="katmanDegistir('hybrid')"><div>🌐 Hibrit</div><small>Uydu + Etiketler</small></button>
+        </div>
+        <div class="layer-toggle-group">
+            <h4>🌬 Hava Durumu</h4>
+            <button class="uydu-btn" onclick="windyAc('wind')"><div>💨 Rüzgar Akışı</div><small>Windy.com gerçek zamanlı</small></button>
+            <button class="uydu-btn" onclick="windyAc('rain')"><div>🌧 Yağış Radarı</div><small>Windy.com CAPE</small></button>
+            <button class="uydu-btn" onclick="windyAc('clouds')"><div>☁ Bulut Örtüsü</div><small>Windy.com uydu</small></button>
+        </div>
+        <iframe id="windy-embed" src="" style="display:none;width:100%;height:220px;border:1px solid var(--border);border-radius:3px;"></iframe>
+    </div>
+</aside>
+
+<!-- MAP -->
+<div id="harita-wrap">
+    <div id="harita"></div>
+    <div id="harita-controls">
+        <button class="map-ctrl-btn aktif" id="btn-dark" onclick="katmanDegistir('dark')">🌑 KARANLIK</button>
+        <button class="map-ctrl-btn" id="btn-sat" onclick="katmanDegistir('satellite')">🛰 UYDU</button>
+        <button class="map-ctrl-btn" id="btn-hybrid" onclick="katmanDegistir('hybrid')">🌐 HİBRİT</button>
+        <button class="map-ctrl-btn" id="btn-terrain" onclick="katmanDegistir('terrain')">🏔 ARAZİ</button>
+        <hr style="border-color:var(--border);margin:4px 0;">
+        <button class="map-ctrl-btn" onclick="haritataSifirla()">↩ SIFIRLA</button>
+    </div>
+    <div id="harita-info">KAT: <span id="mevcut-katman">KARANLIK</span> &nbsp;|&nbsp; HEDEF: <span id="mevcut-hedef">—</span></div>
+</div>
+
+<!-- RIGHT PANEL -->
+<aside id="veri-paneli">
+    <div class="panel-header">
+        <h2>🧠 CANLI İSTİHBARAT</h2>
+        <button onclick="akisiTemizle()" style="background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:0.6rem;padding:2px 8px;cursor:pointer;border-radius:2px;">TEMİZLE</button>
+    </div>
+    <div id="source-filter">
+        <button class="src-btn on" id="f-all" onclick="filtreUygula('all')">TÜMÜ</button>
+        <button class="src-btn" id="f-tg" onclick="filtreUygula('tg')">TELEGRAM</button>
+        <button class="src-btn" id="f-rss" onclick="filtreUygula('rss')">RSS</button>
+        <button class="src-btn red on" id="f-alarm" onclick="filtreUygula('alarm')">🔴 ALARM</button>
+    </div>
+    <div id="akis-sahnesi">
+        <div class="bos-durum">
+            <div style="font-size:1.5rem;margin-bottom:10px;">⚙</div>
+            Sunucu ayarlarını girin<br>
+            <span style="font-size:0.65rem;color:var(--green-dim);">Sağ üstteki ⚙ AYARLAR butonuna tıklayın</span>
+        </div>
+    </div>
+    <div id="istatistik">
+        <span>SON: <b id="son-guncelleme">—</b></span>
+        <span>KAYNAK: <b id="son-kaynak">—</b></span>
+        <span><b id="api-url-display" style="color:var(--text-dim);font-size:0.6rem;">—</b></span>
+    </div>
+</aside>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── KONFİGÜRASYON (localStorage) ──
+var API_BASE = localStorage.getItem('vm_api_url') || '';
+var API_KEY  = localStorage.getItem('vm_api_key') || '';
+
+function configAc() { document.getElementById('config-modal').style.display = 'flex'; }
+function configKapat() { document.getElementById('config-modal').style.display = 'none'; }
+
+function baglantiKaydet() {
+    var url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+    var key = document.getElementById('cfg-key').value.trim();
+    if (!url) { alert('Sunucu adresi boş olamaz!'); return; }
+    localStorage.setItem('vm_api_url', url);
+    localStorage.setItem('vm_api_key', key);
+    API_BASE = url;
+    API_KEY  = key;
+    document.getElementById('api-url-display').textContent = url.replace('https://','').replace('http://','').substring(0,28)+'…';
+    configKapat();
+    document.getElementById('akis-sahnesi').innerHTML = '<div class="bos-durum"><div style="font-size:1.5rem">🛰</div>Bağlanılıyor...</div>';
+    otonomAnaliz();
+}
+
+// Modal başlangıç değerleri
+window.addEventListener('load', function() {
+    if (API_BASE) {
+        document.getElementById('cfg-url').value = API_BASE;
+        document.getElementById('cfg-key').value = API_KEY;
+        document.getElementById('api-url-display').textContent = API_BASE.replace('https://','').replace('http://','').substring(0,28)+'…';
+        configKapat();
+        otonomAnaliz();
+    } else {
+        document.getElementById('config-modal').style.display = 'flex';
+    }
+});
+
+// ── SAAT ──
+function saatGuncelle() {
+    document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' TR';
+}
+setInterval(saatGuncelle, 1000); saatGuncelle();
+
+// ── HARİTA ──
+var harita = L.map('harita', {center:[38.5,34.0], zoom:4, zoomControl:true, attributionControl:false});
+var katmanlar = {
+    dark:      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+    terrain:   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'),
+    hybrid:    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')
+};
+var etiketKat = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png');
+katmanlar.dark.addTo(harita);
+var aktifKatman = 'dark';
+
+function katmanDegistir(tip) {
+    if (aktifKatman === tip) return;
+    harita.removeLayer(katmanlar[aktifKatman]);
+    if (aktifKatman === 'hybrid') try { harita.removeLayer(etiketKat); } catch(e){}
+    katmanlar[tip].addTo(harita);
+    if (tip === 'hybrid') etiketKat.addTo(harita);
+    aktifKatman = tip;
+    document.querySelectorAll('.map-ctrl-btn').forEach(b => b.classList.remove('aktif'));
+    var ids = {dark:'btn-dark',satellite:'btn-sat',terrain:'btn-terrain',hybrid:'btn-hybrid'};
+    if (ids[tip]) document.getElementById(ids[tip]).classList.add('aktif');
+    document.getElementById('mevcut-katman').textContent = tip.toUpperCase();
+}
+
+var aktifHedefler = L.layerGroup().addTo(harita);
+var radarIkonu = L.divIcon({className:'hedef-radar',iconSize:[40,40],iconAnchor:[20,20],html:'<div class="hedef-marker-inner"></div>'});
+function haritataSifirla() { harita.flyTo([38.5,34.0],4,{animate:true,duration:1.5}); document.getElementById('mevcut-hedef').textContent='—'; }
+
+// ── SEKMELER ──
+function sekmeAc(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('aktif'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('aktif'));
+    document.getElementById('tab-'+id).classList.add('aktif');
+    btn.classList.add('aktif');
+}
+
+// ── WINDY ──
+function windyAc(layer) {
+    var e = document.getElementById('windy-embed');
+    e.style.display = 'block';
+    e.src = `https://embed.windy.com/embed2.html?lat=39&lon=35&zoom=4&level=surface&overlay=${layer}&product=ecmwf&menu=&message=true&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`;
+}
+
+// ── SAYAÇLAR ──
+var haberSayisi = 0, alarmSayisi = 0, aktifFiltre = 'all';
+
+function filtreUygula(tip) {
+    aktifFiltre = tip;
+    document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('on'));
+    document.getElementById('f-'+tip).classList.add('on');
+    document.querySelectorAll('.haber-karti').forEach(k => {
+        var t = k.dataset.tip, a = k.dataset.alarm === '1';
+        k.style.display = (tip==='all' || (tip==='alarm'&&a) || (tip==='tg'&&t==='tg') || (tip==='rss'&&t==='rss')) ? '' : 'none';
+    });
+}
+
+function akisiTemizle() {
+    document.getElementById('akis-sahnesi').innerHTML = '';
+    haberSayisi = alarmSayisi = 0;
+    document.getElementById('toplam-haber').textContent = '0';
+    document.getElementById('toplam-alarm').textContent = '0';
+}
+
+// ── ANA FETCH ──
+var intervalId = null;
+
+function otonomAnaliz() {
+    if (!API_BASE) return;
+    var t0 = performance.now();
+    var headers = { 'Content-Type': 'application/json' };
+    if (API_KEY) headers['X-API-Key'] = API_KEY;
+
+    fetch(API_BASE + '/api/ai_istihbarat', { headers: headers })
+        .then(res => {
+            document.getElementById('api-ping').innerHTML =
+                'GECİKME: <b>' + Math.round(performance.now()-t0) + '</b>ms';
+            if (res.status === 403) throw new Error('API Key geçersiz');
+            if (res.status === 429) throw new Error('Rate limit aşıldı');
+            return res.json();
+        })
+        .then(data => {
+            document.getElementById('status-dot').style.background = 'var(--green)';
+            document.getElementById('baglanti-durum').textContent = 'BAĞLANDI — AKTİF';
+            document.getElementById('son-guncelleme').textContent = new Date().toLocaleTimeString('tr-TR');
+            if (!data || !data.veri) return;
+
+            var panel = document.getElementById('akis-sahnesi');
+            if (panel.querySelector('.bos-durum')) panel.innerHTML = '';
+
+            var m = data.veri;
+            var tip = m.kaynak_tip || 'tg';
+            var ekClass = m.ai_tespit ? 'ai-alarm' : (tip==='rss' ? 'rss-source' : 'tr-source');
+            var aiUyari = m.ai_tespit ? `<div class="ai-etiket">KİLİTLENDİ — ${m.hedef_isim}</div>` : '';
+            var link = m.link ? `<a class="haber-link" href="${m.link}" target="_blank">↗ KAYNAĞA GİT</a>` : '';
+
+            panel.insertAdjacentHTML('afterbegin', `
+                <div class="haber-karti ${ekClass}" data-tip="${tip}" data-alarm="${m.ai_tespit?'1':'0'}">
+                    <div class="kart-meta">
+                        <span>
+                            <span class="dil-bayrak">${m.bayrak}</span>
+                            <span class="kaynak-etiket">${m.kaynak}</span>
+                            <span class="kaynak-tip ${tip}">${tip.toUpperCase()}</span>
+                        </span>
+                        <span class="zaman-damgasi">${m.zaman}</span>
+                    </div>
+                    <span class="cevirilmis-metin">${m.mesaj_ceviri}</span>
+                    <span class="orijinal-metin">${(m.mesaj_orijinal||'').substring(0,200)}${m.mesaj_orijinal&&m.mesaj_orijinal.length>200?'…':''}</span>
+                    ${link}${aiUyari}
+                </div>`);
+
+            haberSayisi++;
+            document.getElementById('toplam-haber').textContent = haberSayisi;
+            document.getElementById('son-kaynak').textContent = m.kaynak;
+
+            if (m.ai_tespit) {
+                alarmSayisi++;
+                document.getElementById('toplam-alarm').textContent = alarmSayisi;
+                aktifHedefler.clearLayers();
+                harita.flyTo(m.koordinat, 7, {animate:true, duration:2.0});
+                L.marker(m.koordinat, {icon:radarIkonu}).addTo(aktifHedefler)
+                 .bindPopup(`<b style="color:var(--red)">⚠ ${m.hedef_isim}</b><br>${m.kaynak} — ${m.zaman}`)
+                 .openPopup();
+                document.getElementById('mevcut-hedef').textContent = m.hedef_isim;
+                try {
+                    var ctx = new (window.AudioContext||window.webkitAudioContext)();
+                    var o = ctx.createOscillator(), g = ctx.createGain();
+                    o.connect(g); g.connect(ctx.destination);
+                    o.type='sine'; o.frequency.setValueAtTime(880,ctx.currentTime);
+                    o.frequency.exponentialRampToValueAtTime(440,ctx.currentTime+0.3);
+                    g.gain.setValueAtTime(0.25,ctx.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+                    o.start(ctx.currentTime); o.stop(ctx.currentTime+0.5);
+                } catch(e){}
+            }
+            if (aktifFiltre !== 'all') filtreUygula(aktifFiltre);
+            var kartlar = panel.querySelectorAll('.haber-karti');
+            if (kartlar.length > 60) kartlar[kartlar.length-1].remove();
+        })
+        .catch(e => {
+            document.getElementById('status-dot').style.background = 'var(--red)';
+            document.getElementById('baglanti-durum').textContent = e.message || 'BAĞLANTI HATASI';
+        });
+}
+
+if (API_BASE) {
+    setInterval(otonomAnaliz, 8000);
+}
+</script>
+</body>
+</html>

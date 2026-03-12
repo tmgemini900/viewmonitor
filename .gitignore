@@ -1,0 +1,30 @@
+# Ortam değişkenleri — ASLA push edilmez
+backend/.env
+.env
+
+# Veritabanı ve log
+data/
+*.db
+*.log
+*.log.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

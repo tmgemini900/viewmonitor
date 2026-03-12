@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: viewmonitor-api
+    runtime: python
+    # Düzeltme: rootDir backend/ olarak ayarlandı — main.py buradadır
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # Düzeltme: viewmonitor_api:app değil main:app
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      # DB: Render free tier'da /tmp ephemeral — kalıcı veri için Render Disk servisi ekleyin
+      - key: DB_PATH
+        value: /tmp/viewmonitor.db
+      - key: LOG_PATH
+        value: /tmp/viewmonitor.log
+      # CORS — tmgemini900'i kendi GitHub kullanıcı adınızla değiştirin!
+      - key: ALLOW_ORIGIN
+        value: https://tmgemini900.github.io
+      # API Key — boş bırakılırsa kimlik doğrulama devre dışı
+      - key: API_KEY
+        value: ""
+    healthCheckPath: /api/durum
+    autoDeploy: true

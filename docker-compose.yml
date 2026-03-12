@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  viewmonitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: viewmonitor
+    ports:
+      - "8080:8080"
+    volumes:
+      # Düzeltme: DB dosyası yerine data/ klasörü mount ediliyor
+      # Böylece Docker, ./data yoksa klasör olarak oluşturur (dosya değil)
+      # ve SQLite IsADirectoryError hatası oluşmaz
+      - ./data:/app/data
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_PATH=/app/data/viewmonitor.db
+      - LOG_PATH=/app/data/viewmonitor.log
+      # CORS — kendi GitHub Pages URL'inizi yazın
+      - ALLOW_ORIGIN=https://tmgemini900.github.io
+      # API Key — boş bırakılırsa auth yok
+      - API_KEY=
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/durum"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
