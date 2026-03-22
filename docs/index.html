@@ -382,89 +382,113 @@ function akisiTemizle() {
     document.getElementById('toplam-alarm').textContent = '0';
 }
 
-// ── ANA FETCH ──
-var intervalId = null;
+// ── GÜVENLI METİN KAÇIŞ ──
+function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── HABER EKLEYİCİ (DOM tabanlı, XSS-safe) ──
+function haberEkle(m) {
+    if (!m || m.ping) return;
+    var panel = document.getElementById('akis-sahnesi');
+    if (panel.querySelector('.bos-durum')) panel.textContent = '';
+    var tip = m.kaynak_tip || 'rss';
+    var ekClass = m.ai_tespit ? 'ai-alarm' : (tip==='rss' ? 'rss-source' : 'tr-source');
+    var kart = document.createElement('div');
+    kart.className = 'haber-karti ' + ekClass;
+    kart.dataset.tip = tip;
+    kart.dataset.alarm = m.ai_tespit ? '1' : '0';
+
+    var meta = document.createElement('div'); meta.className = 'kart-meta';
+    var sol = document.createElement('span');
+    var bayrak = document.createElement('span'); bayrak.className = 'dil-bayrak'; bayrak.textContent = m.bayrak||'🌍';
+    var kaynakEl = document.createElement('span'); kaynakEl.className = 'kaynak-etiket'; kaynakEl.textContent = m.kaynak||'';
+    var tipEl = document.createElement('span'); tipEl.className = 'kaynak-tip ' + tip; tipEl.textContent = tip.toUpperCase();
+    sol.appendChild(bayrak); sol.appendChild(kaynakEl); sol.appendChild(tipEl);
+    var zaman = document.createElement('span'); zaman.className = 'zaman-damgasi'; zaman.textContent = m.zaman||'';
+    meta.appendChild(sol); meta.appendChild(zaman);
+
+    var ceviri = document.createElement('span'); ceviri.className = 'cevirilmis-metin'; ceviri.textContent = m.mesaj_ceviri||'';
+    var orijinal = document.createElement('span'); orijinal.className = 'orijinal-metin';
+    orijinal.textContent = (m.mesaj_orijinal||'').substring(0,200) + ((m.mesaj_orijinal||'').length>200?'…':'');
+
+    kart.appendChild(meta); kart.appendChild(ceviri); kart.appendChild(orijinal);
+
+    if (m.link) {
+        var a = document.createElement('a'); a.className = 'haber-link';
+        a.href = m.link; a.target = '_blank'; a.rel = 'noopener noreferrer';
+        a.textContent = '↗ KAYNAĞA GİT';
+        kart.appendChild(a);
+    }
+    if (m.ai_tespit) {
+        var uy = document.createElement('div'); uy.className = 'ai-etiket';
+        uy.textContent = 'KİLİTLENDİ — ' + (m.hedef_isim||'');
+        kart.appendChild(uy);
+    }
+
+    panel.insertBefore(kart, panel.firstChild);
+    haberSayisi++;
+    document.getElementById('toplam-haber').textContent = haberSayisi;
+    document.getElementById('son-kaynak').textContent = m.kaynak||'';
+    document.getElementById('son-guncelleme').textContent = new Date().toLocaleTimeString('tr-TR');
+
+    if (m.ai_tespit && m.koordinat) {
+        alarmSayisi++;
+        document.getElementById('toplam-alarm').textContent = alarmSayisi;
+        aktifHedefler.clearLayers();
+        harita.flyTo(m.koordinat, 7, {animate:true, duration:2.0});
+        L.marker(m.koordinat, {icon:radarIkonu}).addTo(aktifHedefler)
+         .bindPopup('<b style="color:var(--red)">⚠ ' + esc(m.hedef_isim||'') + '</b><br>' + esc(m.kaynak) + ' — ' + esc(m.zaman))
+         .openPopup();
+        document.getElementById('mevcut-hedef').textContent = m.hedef_isim || '—';
+        try {
+            var ctx = new (window.AudioContext||window.webkitAudioContext)();
+            var o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type='sine'; o.frequency.setValueAtTime(880,ctx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(440,ctx.currentTime+0.3);
+            g.gain.setValueAtTime(0.25,ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
+            o.start(ctx.currentTime); o.stop(ctx.currentTime+0.5);
+        } catch(e){}
+    }
+    if (aktifFiltre !== 'all') filtreUygula(aktifFiltre);
+    var kartlar = panel.querySelectorAll('.haber-karti');
+    if (kartlar.length > 80) kartlar[kartlar.length-1].remove();
+}
+
+// ── SSE BAĞLANTISI ──
+var _sseObj = null;
+var _sseRetry = 0;
 
 function otonomAnaliz() {
     if (!API_BASE) return;
+    if (_sseObj) { try { _sseObj.close(); } catch(e){} }
     var t0 = performance.now();
-    var headers = { 'Content-Type': 'application/json' };
-    if (API_KEY) headers['X-API-Key'] = API_KEY;
+    _sseObj = new EventSource(API_BASE + '/api/stream');
 
-    fetch(API_BASE + '/api/ai_istihbarat', { headers: headers })
-        .then(res => {
-            document.getElementById('api-ping').innerHTML =
-                'GECİKME: <b>' + Math.round(performance.now()-t0) + '</b>ms';
-            if (res.status === 403) throw new Error('API Key geçersiz');
-            if (res.status === 429) throw new Error('Rate limit aşıldı');
-            return res.json();
-        })
-        .then(data => {
-            document.getElementById('status-dot').style.background = 'var(--green)';
-            document.getElementById('baglanti-durum').textContent = 'BAĞLANDI — AKTİF';
-            document.getElementById('son-guncelleme').textContent = new Date().toLocaleTimeString('tr-TR');
-            if (!data || !data.veri) return;
-
-            var panel = document.getElementById('akis-sahnesi');
-            if (panel.querySelector('.bos-durum')) panel.innerHTML = '';
-
-            var m = data.veri;
-            var tip = m.kaynak_tip || 'tg';
-            var ekClass = m.ai_tespit ? 'ai-alarm' : (tip==='rss' ? 'rss-source' : 'tr-source');
-            var aiUyari = m.ai_tespit ? `<div class="ai-etiket">KİLİTLENDİ — ${m.hedef_isim}</div>` : '';
-            var link = m.link ? `<a class="haber-link" href="${m.link}" target="_blank">↗ KAYNAĞA GİT</a>` : '';
-
-            panel.insertAdjacentHTML('afterbegin', `
-                <div class="haber-karti ${ekClass}" data-tip="${tip}" data-alarm="${m.ai_tespit?'1':'0'}">
-                    <div class="kart-meta">
-                        <span>
-                            <span class="dil-bayrak">${m.bayrak}</span>
-                            <span class="kaynak-etiket">${m.kaynak}</span>
-                            <span class="kaynak-tip ${tip}">${tip.toUpperCase()}</span>
-                        </span>
-                        <span class="zaman-damgasi">${m.zaman}</span>
-                    </div>
-                    <span class="cevirilmis-metin">${m.mesaj_ceviri}</span>
-                    <span class="orijinal-metin">${(m.mesaj_orijinal||'').substring(0,200)}${m.mesaj_orijinal&&m.mesaj_orijinal.length>200?'…':''}</span>
-                    ${link}${aiUyari}
-                </div>`);
-
-            haberSayisi++;
-            document.getElementById('toplam-haber').textContent = haberSayisi;
-            document.getElementById('son-kaynak').textContent = m.kaynak;
-
-            if (m.ai_tespit) {
-                alarmSayisi++;
-                document.getElementById('toplam-alarm').textContent = alarmSayisi;
-                aktifHedefler.clearLayers();
-                harita.flyTo(m.koordinat, 7, {animate:true, duration:2.0});
-                L.marker(m.koordinat, {icon:radarIkonu}).addTo(aktifHedefler)
-                 .bindPopup(`<b style="color:var(--red)">⚠ ${m.hedef_isim}</b><br>${m.kaynak} — ${m.zaman}`)
-                 .openPopup();
-                document.getElementById('mevcut-hedef').textContent = m.hedef_isim;
-                try {
-                    var ctx = new (window.AudioContext||window.webkitAudioContext)();
-                    var o = ctx.createOscillator(), g = ctx.createGain();
-                    o.connect(g); g.connect(ctx.destination);
-                    o.type='sine'; o.frequency.setValueAtTime(880,ctx.currentTime);
-                    o.frequency.exponentialRampToValueAtTime(440,ctx.currentTime+0.3);
-                    g.gain.setValueAtTime(0.25,ctx.currentTime);
-                    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
-                    o.start(ctx.currentTime); o.stop(ctx.currentTime+0.5);
-                } catch(e){}
-            }
-            if (aktifFiltre !== 'all') filtreUygula(aktifFiltre);
-            var kartlar = panel.querySelectorAll('.haber-karti');
-            if (kartlar.length > 60) kartlar[kartlar.length-1].remove();
-        })
-        .catch(e => {
-            document.getElementById('status-dot').style.background = 'var(--red)';
-            document.getElementById('baglanti-durum').textContent = e.message || 'BAĞLANTI HATASI';
-        });
+    _sseObj.onopen = function() {
+        document.getElementById('api-ping').innerHTML =
+            'GECİKME: <b>' + Math.round(performance.now()-t0) + '</b>ms';
+        document.getElementById('status-dot').style.background = 'var(--green)';
+        document.getElementById('baglanti-durum').textContent = 'BAĞLANDI — SSE AKTİF';
+        _sseRetry = 0;
+    };
+    _sseObj.onmessage = function(e) {
+        try { var m = JSON.parse(e.data); if (m && !m.ping) haberEkle(m); } catch(err) {}
+    };
+    _sseObj.onerror = function() {
+        document.getElementById('status-dot').style.background = 'var(--red)';
+        _sseRetry++;
+        var wait = Math.min(30000, 2000 * Math.pow(1.5, _sseRetry));
+        document.getElementById('baglanti-durum').textContent = 'YENİDEN BAĞLANIYOR... (' + _sseRetry + ')';
+        _sseObj.close();
+        setTimeout(otonomAnaliz, wait);
+    };
 }
 
 if (API_BASE) {
-    setInterval(otonomAnaliz, 8000);
+    otonomAnaliz();
 }
 </script>
 </body>

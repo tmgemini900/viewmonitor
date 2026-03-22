@@ -48,10 +48,17 @@ TETIKLE_COOLDOWN       = 30
 logger = logging.getLogger("VM")
 logger.setLevel(logging.INFO)
 _fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-_fh  = logging.handlers.RotatingFileHandler(LOG_PATH, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
-_fh.setFormatter(_fmt)
-_ch  = logging.StreamHandler(); _ch.setFormatter(_fmt)
-logger.addHandler(_fh); logger.addHandler(_ch)
+_log_dir = os.path.dirname(LOG_PATH)
+if _log_dir:
+    os.makedirs(_log_dir, exist_ok=True)
+try:
+    _fh = logging.handlers.RotatingFileHandler(LOG_PATH, maxBytes=5*1024*1024, backupCount=3, encoding="utf-8")
+    _fh.setFormatter(_fmt)
+    logger.addHandler(_fh)
+except OSError:
+    pass  # Log dosyası açılamadı — sadece konsol
+_ch = logging.StreamHandler(); _ch.setFormatter(_fmt)
+logger.addHandler(_ch)
 
 # ══════════════════════════════════════════════
 # LOKASYONLAR
@@ -126,15 +133,17 @@ KRITIK_LOKASYONLAR = {
 # ══════════════════════════════════════════════
 # NITTER INSTANCES
 # ══════════════════════════════════════════════
-# Düzeltme: Eski/kapalı Nitter instance'ları kaldırıldı, güncel aktif liste
 # Not: Nitter instance'ları sık kapanır — https://status.d420.de/ adresinden kontrol edin
+# Güncel aktif instance listesi (2025-2026)
 NITTER_INSTANCES = [
-    "https://nitter.poast.org",
-    "https://nitter.privacydev.net",
     "https://nitter.cz",
-    "https://xcancel.com",
-    "https://nitter.unixfox.eu",
-    "https://nitter.kavin.rocks",
+    # xcancel.com kaldırıldı — whitelist hatalarını RSS olarak döndürüyor
+    "https://nitter.tiekoetter.com",
+    "https://nitter.1d4.us",
+    "https://nitter.poast.org",
+    "https://lightbrd.com",
+    "https://nitter.soins.ch",
+    "https://nitter.privacydev.net",
 ]
 # Twitter verisi alınamıyorsa (tüm instance'lar kapalıysa) sessizce None döner — kritik değil
 
@@ -261,8 +270,9 @@ RSS_KAYNAKLARI = [
     {"isim":"Al Arabiya EN",    "url":"https://english.alarabiya.net/rss",                        "dil":"en","bayrak":"🌍","kat":"me"},
     # ─── ABD / Batı ───
     {"isim":"AP Top News",      "url":"https://rsshub.app/apnews/topics/apf-intlnews",            "dil":"en","bayrak":"🇺🇸","kat":"us"},
-    {"isim":"Reuters World",    "url":"https://feeds.reuters.com/Reuters/worldNews",              "dil":"en","bayrak":"🇺🇸","kat":"us"},
-    {"isim":"Reuters Top",      "url":"https://feeds.reuters.com/reuters/topNews",                "dil":"en","bayrak":"🇺🇸","kat":"us"},
+    {"isim":"AP World",         "url":"https://apnews.com/rss",                                   "dil":"en","bayrak":"🇺🇸","kat":"us"},
+    {"isim":"NPR World",        "url":"https://feeds.npr.org/1004/rss.xml",                       "dil":"en","bayrak":"🇺🇸","kat":"us"},
+    {"isim":"CBS World",        "url":"https://www.cbsnews.com/latest/rss/world",                 "dil":"en","bayrak":"🇺🇸","kat":"us"},
     {"isim":"NYT World",        "url":"https://rss.nytimes.com/services/xml/rss/nyt/World.xml",   "dil":"en","bayrak":"🇺🇸","kat":"us"},
     {"isim":"Washington Post",  "url":"https://feeds.washingtonpost.com/rss/world",               "dil":"en","bayrak":"🇺🇸","kat":"us"},
     {"isim":"The Hill",         "url":"https://thehill.com/news/feed/",                           "dil":"en","bayrak":"🇺🇸","kat":"us"},
@@ -367,7 +377,7 @@ gecmis_hash: deque = deque(maxlen=3000)
 sse_clients: List[asyncio.Queue] = []
 son_veri_cache = None
 scheduler: Optional[AsyncIOScheduler] = None
-rss_idx = tg_idx = nt_idx = gdelt_sayac = usgs_sayac = afad_sayac = eonet_sayac = 0
+rss_idx = tg_idx = nt_idx = gdelt_sayac = usgs_sayac = afad_sayac = eonet_sayac = hn_sayac = 0
 _son_tetikle: float = 0.0
 
 # ══════════════════════════════════════════════
@@ -474,6 +484,7 @@ async def db_saydir() -> dict:
             "afad":    await cnt("SELECT COUNT(*) FROM haberler WHERE kaynak_tip='afad'"),
             "eonet":   await cnt("SELECT COUNT(*) FROM haberler WHERE kaynak_tip='eonet'"),
             "gdelt":   await cnt("SELECT COUNT(*) FROM haberler WHERE kaynak_tip='gdelt'"),
+            "hn":      await cnt("SELECT COUNT(*) FROM haberler WHERE kaynak_tip='hn'"),
         }
 
 # ══════════════════════════════════════════════
@@ -495,12 +506,16 @@ def oncelik_hesapla(metin: str, ai: bool) -> tuple:
     if skor >= 20: return skor, "ORTA"
     return skor, "DÜŞÜK"
 
-def dil_cevir(metin: str) -> tuple:
+async def dil_cevir(metin: str) -> tuple:
     if not metin or len(metin.strip()) < 5: return "unk", metin
     try:    dil = detect(metin)
     except: dil = "unk"
     if dil == "tr": return "tr", metin
-    try:    return dil, GoogleTranslator(source="auto", target="tr").translate(metin[:500]) or metin
+    try:
+        ceviri = await asyncio.to_thread(
+            GoogleTranslator(source="auto", target="tr").translate, metin[:500]
+        )
+        return dil, ceviri or metin
     except: return dil, metin
 
 def lokasyon_tara(metin: str) -> tuple:
@@ -542,7 +557,7 @@ async def rss_cek(k: dict) -> Optional[dict]:
                 "User-Agent":"Mozilla/5.0 (compatible; ViewMonitor/3.3)",
                 "Accept":"application/rss+xml,application/xml,text/xml,*/*"})
             r.raise_for_status()
-        feed = feedparser.parse(r.text)
+        feed = await asyncio.to_thread(feedparser.parse, r.text)
         if not feed.entries: return None
         havuz = feed.entries[:10]; random.shuffle(havuz)
         for entry in havuz:
@@ -555,7 +570,7 @@ async def rss_cek(k: dict) -> Optional[dict]:
             if h in gecmis_hash: continue
             gecmis_hash.append(h)
             dil = k.get("dil","en")
-            ceviri = tam if dil=="tr" else dil_cevir(tam)[1]
+            ceviri = tam if dil=="tr" else (await dil_cevir(tam))[1]
             return paket(k["isim"],tam,ceviri,dil,k.get("bayrak","🌍"),
                          tip="rss",link=link,kat=k.get("kat",""))
     except Exception as e:
@@ -592,12 +607,24 @@ async def telegram_cek(kanal: str) -> Optional[dict]:
                 gecmis_hash.append(h)
                 la = msg.find("a",class_="tgme_widget_message_date")
                 link = la["href"] if la and la.get("href") else f"https://t.me/{kanal}"
-                dil, ceviri = dil_cevir(metin)
+                dil, ceviri = await dil_cevir(metin)
                 return paket(f"TG/{kanal.upper()}",metin,ceviri,dil,
                              BAYRAKLAR.get(dil,"🌍"),tip="tg",link=link,kat="tg")
         except Exception as e:
             logger.debug("TG [%s]: %s", kanal, e)
     return None
+
+_NITTER_HATA_KALIPLARI = [
+    "whitelist", "beyaz liste", "rss reader", "rss beslemesi",
+    "not whitelisted", "plain request",
+    "rate limit", "too many requests", "instance is", "temporarily",
+    "this instance", "blocked", "forbidden",
+]
+# Ham yanıt kontrolü için daha spesifik kalıplar (false-positive riski düşük)
+_NITTER_RAW_HATA_KALIPLARI = [
+    "not whitelisted", "whitelist", "beyaz liste",
+    "rss reader not", "plain request", "this instance",
+]
 
 async def nitter_cek(username: str) -> Optional[dict]:
     random.shuffle(NITTER_INSTANCES)
@@ -605,19 +632,38 @@ async def nitter_cek(username: str) -> Optional[dict]:
         try:
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as c:
                 r = await c.get(f"{inst}/{username}/rss",
-                    headers={"User-Agent":"Mozilla/5.0 (compatible; RSS)","Accept":"application/rss+xml"})
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+                        "Accept": "application/rss+xml,application/xml,text/xml,*/*",
+                        "Accept-Language": "en-US,en;q=0.9",
+                    })
                 if r.status_code != 200: continue
-            feed = feedparser.parse(r.text)
+                # Whitelist/hata sayfası kontrolü — HTML hata yanıtını RSS gibi parse etmeyi engelle
+                content_type = r.headers.get("content-type", "")
+                if "html" in content_type and "xml" not in content_type:
+                    logger.debug("Nitter [%s@%s]: HTML yanıt (hata sayfası), atlandı", username, inst)
+                    continue
+                # Ham yanıt metni kontrolü — xcancel gibi XML content-type dönüp hata veren instancelar için
+                raw_lower = r.text.lower()
+                if any(k in raw_lower for k in _NITTER_RAW_HATA_KALIPLARI):
+                    logger.debug("Nitter [%s@%s]: Ham yanıtta hata kalıbı, atlandı", username, inst)
+                    continue
+            feed = await asyncio.to_thread(feedparser.parse, r.text)
             if not feed.entries: continue
             havuz = feed.entries[:5]; random.shuffle(havuz)
             for entry in havuz:
                 metin = BeautifulSoup(entry.get("summary",entry.get("title","")),"html.parser").get_text(" ",strip=True)
                 if not metin or len(metin) < 15: continue
+                # Whitelist/hata mesajı filtresi
+                metin_lower = metin.lower()
+                if any(k in metin_lower for k in _NITTER_HATA_KALIPLARI):
+                    logger.debug("Nitter [%s@%s]: Hata mesajı içerik, atlandı: %s", username, inst, metin[:60])
+                    continue
                 h = hash_olustur(metin)
                 if h in gecmis_hash: continue
                 gecmis_hash.append(h)
                 link = entry.get("link","").replace(inst,"https://twitter.com")
-                dil, ceviri = dil_cevir(metin)
+                dil, ceviri = await dil_cevir(metin)
                 return paket(f"𝕏 @{username}",metin,ceviri,dil,
                              BAYRAKLAR.get(dil,"🌍"),tip="twitter",link=link,kat="twitter")
         except Exception as e:
@@ -639,7 +685,7 @@ async def gdelt_cek() -> Optional[dict]:
             h = hash_olustur(baslik)
             if h in gecmis_hash: continue
             gecmis_hash.append(h)
-            dil, ceviri = dil_cevir(baslik)
+            dil, ceviri = await dil_cevir(baslik)
             return paket(f"⚔GDELT/{kaynak}",baslik,ceviri,dil,"🌍",tip="gdelt",link=link,kat="conflict")
     except Exception as e:
         logger.debug("GDELT: %s", e)
@@ -763,68 +809,112 @@ async def eonet_cek() -> Optional[dict]:
         logger.debug("EONET: %s", e)
     return None
 
+async def hackernews_cek() -> Optional[dict]:
+    """Hacker News top stories — ücretsiz, API key gerektirmez (Firebase API)"""
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as c:
+            r = await c.get("https://hacker-news.firebaseio.com/v0/topstories.json")
+            if r.status_code != 200: return None
+            story_ids = r.json()
+            if not story_ids: return None
+            candidates = story_ids[:30]; random.shuffle(candidates)
+            for sid in candidates[:8]:
+                sr = await c.get(f"https://hacker-news.firebaseio.com/v0/item/{sid}.json")
+                if sr.status_code != 200: continue
+                story = sr.json()
+                if not story or story.get("type") != "story": continue
+                title = story.get("title", "").strip()
+                score = story.get("score", 0)
+                url   = story.get("url", f"https://news.ycombinator.com/item?id={sid}")
+                if not title or len(title) < 10 or score < 150: continue
+                tam = f"HackerNews [{score}⬆]: {title}"
+                h = hash_olustur(tam)
+                if h in gecmis_hash: continue
+                gecmis_hash.append(h)
+                dil, ceviri = await dil_cevir(tam)
+                return paket("HackerNews", tam, ceviri, "en", "💻",
+                             tip="hn", link=url, kat="tech")
+    except Exception as e:
+        logger.debug("HackerNews: %s", e)
+    return None
+
 # ══════════════════════════════════════════════
 # SCHEDULER
 # ══════════════════════════════════════════════
+_cek_busy = False
+
 async def toplu_cek():
-    global rss_idx, tg_idx, nt_idx, gdelt_sayac, usgs_sayac, afad_sayac, eonet_sayac
-    sonuclar = []
+    global rss_idx, tg_idx, nt_idx, gdelt_sayac, usgs_sayac, afad_sayac, eonet_sayac, hn_sayac, _cek_busy
+    if _cek_busy:
+        logger.debug("toplu_cek: önceki döngü hâlâ devam ediyor, atlandı")
+        return
+    _cek_busy = True
+    try:
+        sonuclar = []
 
-    # RSS — 5 kaynak paralel
-    rss_batch = []
-    for _ in range(5):
-        k = RSS_KAYNAKLARI[rss_idx % len(RSS_KAYNAKLARI)]; rss_idx += 1
-        rss_batch.append(rss_cek(k))
-    rss_results = await asyncio.gather(*rss_batch, return_exceptions=True)
-    for _r in rss_results:
-        if isinstance(_r, Exception): logger.warning("RSS gather: %s", _r)
-    for v in rss_results:
-        if v and not isinstance(v, Exception): sonuclar.append(v)
+        # RSS — 5 kaynak paralel
+        rss_batch = []
+        for _ in range(5):
+            k = RSS_KAYNAKLARI[rss_idx % len(RSS_KAYNAKLARI)]; rss_idx += 1
+            rss_batch.append(rss_cek(k))
+        rss_results = await asyncio.gather(*rss_batch, return_exceptions=True)
+        for _r in rss_results:
+            if isinstance(_r, Exception): logger.warning("RSS gather: %s", _r)
+        for v in rss_results:
+            if v and not isinstance(v, Exception): sonuclar.append(v)
 
-    # Telegram — 2 kanal paralel
-    tg_batch = []
-    for _ in range(2):
-        k = TELEGRAM_KANALLARI[tg_idx % len(TELEGRAM_KANALLARI)]; tg_idx += 1
-        tg_batch.append(telegram_cek(k))
-    tg_results = await asyncio.gather(*tg_batch, return_exceptions=True)
-    for _r in tg_results:
-        if isinstance(_r, Exception): logger.warning("TG gather: %s", _r)
-    for v in tg_results:
-        if v and not isinstance(v, Exception): sonuclar.append(v)
+        # Telegram — 2 kanal paralel
+        tg_batch = []
+        for _ in range(2):
+            k = TELEGRAM_KANALLARI[tg_idx % len(TELEGRAM_KANALLARI)]; tg_idx += 1
+            tg_batch.append(telegram_cek(k))
+        tg_results = await asyncio.gather(*tg_batch, return_exceptions=True)
+        for _r in tg_results:
+            if isinstance(_r, Exception): logger.warning("TG gather: %s", _r)
+        for v in tg_results:
+            if v and not isinstance(v, Exception): sonuclar.append(v)
 
-    # Nitter/Twitter
-    hesap = NITTER_HESAPLARI[nt_idx % len(NITTER_HESAPLARI)]; nt_idx += 1
-    v = await nitter_cek(hesap)
-    if v: sonuclar.append(v)
-
-    # GDELT — her 5 döngüde bir
-    gdelt_sayac += 1
-    if gdelt_sayac % 5 == 0:
-        v = await gdelt_cek()
+        # Nitter/Twitter
+        hesap = NITTER_HESAPLARI[nt_idx % len(NITTER_HESAPLARI)]; nt_idx += 1
+        v = await nitter_cek(hesap)
         if v: sonuclar.append(v)
 
-    # USGS Earthquake — her 3 döngüde bir (~24sn)
-    usgs_sayac += 1
-    if usgs_sayac % 3 == 0:
-        v = await usgs_cek()
-        if v: sonuclar.append(v)
+        # GDELT — her 5 döngüde bir
+        gdelt_sayac += 1
+        if gdelt_sayac % 5 == 0:
+            v = await gdelt_cek()
+            if v: sonuclar.append(v)
 
-    # AFAD Turkey — her 4 döngüde bir (~32sn)
-    afad_sayac += 1
-    if afad_sayac % 4 == 0:
-        v = await afad_cek()
-        if v: sonuclar.append(v)
+        # USGS Earthquake — her 3 döngüde bir (~24sn)
+        usgs_sayac += 1
+        if usgs_sayac % 3 == 0:
+            v = await usgs_cek()
+            if v: sonuclar.append(v)
 
-    # NASA EONET — her 10 döngüde bir (~80sn)
-    eonet_sayac += 1
-    if eonet_sayac % 10 == 0:
-        v = await eonet_cek()
-        if v: sonuclar.append(v)
+        # AFAD Turkey — her 4 döngüde bir (~32sn)
+        afad_sayac += 1
+        if afad_sayac % 4 == 0:
+            v = await afad_cek()
+            if v: sonuclar.append(v)
 
-    for veri in sonuclar:
-        if await db_kaydet(veri):
-            await sse_yayinla(veri)
-            logger.info("[%s] %s — %s", veri["kaynak_tip"].upper(), veri["kaynak"], veri["oncelik_etiket"])
+        # NASA EONET — her 10 döngüde bir (~80sn)
+        eonet_sayac += 1
+        if eonet_sayac % 10 == 0:
+            v = await eonet_cek()
+            if v: sonuclar.append(v)
+
+        # Hacker News — her 6 döngüde bir (~78sn), min score 150
+        hn_sayac += 1
+        if hn_sayac % 6 == 0:
+            v = await hackernews_cek()
+            if v: sonuclar.append(v)
+
+        for veri in sonuclar:
+            if await db_kaydet(veri):
+                await sse_yayinla(veri)
+                logger.info("[%s] %s — %s", veri["kaynak_tip"].upper(), veri["kaynak"], veri["oncelik_etiket"])
+    finally:
+        _cek_busy = False
 
 # ══════════════════════════════════════════════
 # LIFESPAN
@@ -899,7 +989,7 @@ async def saglik():
         "kaynaklar":{
             "rss":len(RSS_KAYNAKLARI),"telegram":len(TELEGRAM_KANALLARI),
             "twitter":len(NITTER_HESAPLARI),
-            "usgs":"aktif","afad":"aktif","eonet":"aktif","gdelt":"aktif"
+            "usgs":"aktif","afad":"aktif","eonet":"aktif","gdelt":"aktif","hackernews":"aktif"
         }
     }
 

@@ -2202,11 +2202,16 @@
     <!-- KAMERA PANELİ -->
     <div id="tab-cam" class="tpanel on">
       <div class="cam-card">
-        <iframe class="cam-frame" src="https://trafik.ibb.gov.tr/" title="İBB Trafik" allowfullscreen></iframe>
+        <!-- IBB trafik.ibb.gov.tr X-Frame-Options:SAMEORIGIN ile iframe'i blokluyor.
+             Google Maps Traffic embed (API key gerektirmez) ile değiştirildi. -->
+        <iframe class="cam-frame"
+          src="https://maps.google.com/maps?q=istanbul&t=m&layer=traffic&z=12&output=embed&hl=tr"
+          title="İstanbul Trafik" allowfullscreen loading="lazy"></iframe>
         <div class="cam-info">
-          <b>📍 İSTANBUL — İBB TRAFİK</b>
-          Gerçek zamanlı trafik kameraları
-          <br><a class="cam-link" href="https://trafik.ibb.gov.tr" target="_blank">↗ Tam ekran</a>
+          <b>📍 İSTANBUL — GOOGLE TRAFİK</b>
+          Gerçek zamanlı trafik katmanı
+          <br><a class="cam-link" href="https://trafik.ibb.gov.tr" target="_blank">↗ İBB Trafik (Tam Ekran)</a>
+          &nbsp;|&nbsp;<a class="cam-link" href="https://waze.com/ul?q=istanbul&zoom=13" target="_blank">↗ Waze</a>
         </div>
       </div>
       <div class="cam-card">
@@ -2520,47 +2525,57 @@
     // ── Channel definitions ──
     const CHANNELS = {
       tr: [
+        // TRT resmi HLS akışları (en güvenilir)
         { flag: '🇹🇷', name: 'TRT HABER', url: 'https://tv-trthaber.medya.trt.com.tr/master.m3u8' },
         { flag: '🇹🇷', name: 'TRT WORLD', url: 'https://tv-trtworld.live.trt.com.tr/master.m3u8' },
         { flag: '🇹🇷', name: 'TRT 1', url: 'https://tv-trt1.live.trt.com.tr/master_720.m3u8' },
-        { flag: '🇹🇷', name: 'TGRT HABER', url: 'https://canli.tgrthaber.com/tgrt.m3u8' },
+        { flag: '🇹🇷', name: 'TRT 2', url: 'https://tv-trt2.live.trt.com.tr/master.m3u8' },
         { flag: '🇹🇷', name: 'HABERTüRK', url: 'https://ciner-live.daioncdn.net/haberturktv/haberturktv.m3u8' },
-        { flag: '🇹🇷', name: 'HABER GLOBAL', url: 'https://mn-nl.mncdn.com/blutv_haberglobal2/live.m3u8' },
+        { flag: '🇹🇷', name: 'HABER GLOBAL', url: 'https://haberglobal-live.ercdn.net/haberglobal/haberglobal.m3u8' },
         { flag: '🇹🇷', name: 'HALK TV', url: 'https://halktv-live.ercdn.net/halktv/halktv.m3u8' },
         { flag: '🇹🇷', name: '360 TV', url: 'https://turkmedya-live.ercdn.net/tv360/tv360.m3u8' },
+        { flag: '🇹🇷', name: 'TGRT HABER', url: 'https://tgrthaber-live.ercdn.net/tgrthaber/tgrthaber.m3u8' },
+        // YouTube fallback (HLS yoksa)
         { flag: '🇹🇷', name: 'CNN TÜRK', url: 'https://www.youtube.com/embed/yHrENzzF2GU?autoplay=1&mute=1', yt: true },
         { flag: '🇹🇷', name: 'NTV', url: 'https://www.youtube.com/embed/Vm9-LzMNUuM?autoplay=1&mute=1', yt: true },
         { flag: '🇹🇷', name: 'A HABER', url: 'https://www.youtube.com/embed/4kK3aY3snAk?autoplay=1&mute=1', yt: true },
         { flag: '🇹🇷', name: 'BLOOMBERG HT', url: 'https://www.youtube.com/embed/BFxfxg2VFjk?autoplay=1&mute=1', yt: true },
+        { flag: '🇹🇷', name: 'SABAH TV', url: 'https://www.youtube.com/embed/IEHFiFX_r8o?autoplay=1&mute=1', yt: true },
       ],
       int: [
+        // Resmi HLS akışlar (güvenilir)
         { flag: '🌍', name: 'AL JAZEERA EN', url: 'https://live-hls-web-aje.getaj.net/AJE/index.m3u8' },
-        { flag: '🇫🇷', name: 'FRANCE 24', url: 'https://static.france24.com/live/F24_EN_HI_HLS/live_tv.m3u8' },
+        { flag: '🇫🇷', name: 'FRANCE 24 EN', url: 'https://static.france24.com/live/F24_EN_HI_HLS/live_tv.m3u8' },
         { flag: '🇩🇪', name: 'DW NEWS', url: 'https://dwamdstream102.akamaized.net/hls/live/2015533/dwstream102/index.m3u8' },
-        { flag: '🇯🇵', name: 'NHK WORLD', url: 'https://nhkworldjp-nhkwjp-1-jl.rakuten.wurl.com/manifest/playlist.m3u8' },
+        { flag: '🇯🇵', name: 'NHK WORLD', url: 'https://nhkworldjp-nhkwjp-4-jl.rakuten.wurl.com/manifest/playlist.m3u8' },
         { flag: '🇨🇳', name: 'CGTN', url: 'https://news.cgtn.com/resource/live/english/cgtn-news.m3u8' },
+        // YouTube
         { flag: '🇺🇸', name: 'PBS NEWSHOUR', url: 'https://www.youtube.com/embed/nPYHKCpTWPE?autoplay=1&mute=1', yt: true },
         { flag: '🇬🇧', name: 'BBC WORLD', url: 'https://www.youtube.com/embed/w_Ma8oQLmSM?autoplay=1&mute=1', yt: true },
+        { flag: '🇺🇸', name: 'ABC NEWS', url: 'https://www.youtube.com/embed/w_Ma8oQLmSM?autoplay=1&mute=1', yt: true },
+        { flag: '🇺🇸', name: 'BLOOMBERG', url: 'https://www.youtube.com/embed/dp8PhLsUcFE?autoplay=1&mute=1', yt: true },
         { flag: '🇷🇺', name: 'RT NEWS', url: 'https://www.youtube.com/embed/ImoNuiCIYPQ?autoplay=1&mute=1', yt: true },
       ],
       me: [
         { flag: '🌍', name: 'AL JAZEERA AR', url: 'https://live-hls-web-aja.getaj.net/AJA/index.m3u8' },
-        { flag: '🇸🇦', name: 'AL ARABIYA', url: 'https://live.alarabiya.net/alarabiapublish/alarabiya.smil/playlist.m3u8' },
+        { flag: '🇸🇦', name: 'AL ARABIYA', url: 'https://www.youtube.com/embed/hA0bGr56SHs?autoplay=1&mute=1', yt: true },
         { flag: '🇮🇷', name: 'PRESS TV', url: 'https://www.youtube.com/embed/RIBHHRMQkBg?autoplay=1&mute=1', yt: true },
         { flag: '🌍', name: 'SKY NEWS AR', url: 'https://www.youtube.com/embed/y49OuKBFkBM?autoplay=1&mute=1', yt: true },
         { flag: '🌍', name: 'MIDDLE EAST EYE', url: 'https://www.youtube.com/embed/EtZJpnpg-aI?autoplay=1&mute=1', yt: true },
         { flag: '🇮🇱', name: 'I24 NEWS', url: 'https://www.youtube.com/embed/JpOoPnAnOSo?autoplay=1&mute=1', yt: true },
-        { flag: '🇮🇱', name: 'CHANNEL 12', url: 'https://www.youtube.com/embed/s_Gb10HZPME?autoplay=1&mute=1', yt: true },
+        { flag: '🇮🇱', name: 'CHANNEL 12 IL', url: 'https://www.youtube.com/embed/s_Gb10HZPME?autoplay=1&mute=1', yt: true },
         { flag: '🌍', name: 'IRAN INTL', url: 'https://www.youtube.com/embed/QQZB-kLuU8k?autoplay=1&mute=1', yt: true },
+        { flag: '🌍', name: 'TRT ARABIC', url: 'https://www.youtube.com/embed/GzeZN6bFb7I?autoplay=1&mute=1', yt: true },
       ],
       asia: [
-        { flag: '🇨🇳', name: 'CGTN ARABIC', url: 'https://www.youtube.com/embed/HFnSdE4PuAk?autoplay=1&mute=1', yt: true },
+        { flag: '🇨🇳', name: 'CGTN CHINESE', url: 'https://www.youtube.com/embed/HFnSdE4PuAk?autoplay=1&mute=1', yt: true },
         { flag: '🇰🇷', name: 'ARIRANG NEWS', url: 'https://www.youtube.com/embed/h3MuIUNCCLI?autoplay=1&mute=1', yt: true },
         { flag: '🇮🇳', name: 'INDIA TODAY', url: 'https://www.youtube.com/embed/PTSQKwNz7rM?autoplay=1&mute=1', yt: true },
         { flag: '🇮🇳', name: 'NDTV 24x7', url: 'https://www.youtube.com/embed/5As6HUfU3hE?autoplay=1&mute=1', yt: true },
         { flag: '🇵🇰', name: 'GEO NEWS', url: 'https://www.youtube.com/embed/wV_iLLPJzDk?autoplay=1&mute=1', yt: true },
         { flag: '🇹🇼', name: 'TAIWAN+ NEWS', url: 'https://www.youtube.com/embed/lW2lBuuRW6s?autoplay=1&mute=1', yt: true },
         { flag: '🇦🇺', name: 'SKY NEWS AU', url: 'https://www.youtube.com/embed/MWMHXXPLWl4?autoplay=1&mute=1', yt: true },
+        { flag: '🇯🇵', name: 'NHK JAPAN', url: 'https://www.youtube.com/embed/nSOn1BeHR3A?autoplay=1&mute=1', yt: true },
       ],
     };
 
@@ -2827,11 +2842,21 @@
     }
 
     function openChannelPicker(slotIdx) {
-      // show a quick overlay — just change to first unloaded channel from current category
-      const cat = CHANNELS[activeCat];
+      // Slot'a ilk uygun kanalı ata — tüm kategorilerde sırayla dene
       const used = activeChannels.map(c => c?.url);
-      const next = cat.find(c => !used.includes(c.url));
-      if (next) { activeChannels[slotIdx] = next; buildGrid(); }
+      const allCats = ['tr', 'int', 'me', 'asia'];
+      // Önce aktif kategoriyi dene, sonra diğerlerini
+      const orderedCats = [activeCat, ...allCats.filter(c => c !== activeCat)];
+      let assigned = false;
+      for (const cat of orderedCats) {
+        const next = CHANNELS[cat].find(c => !used.includes(c.url));
+        if (next) { activeChannels[slotIdx] = next; assigned = true; break; }
+      }
+      if (!assigned) {
+        // Tüm kanallar kullanılıyor — aktif kanalı sıfırla (boş bırak)
+        activeChannels[slotIdx] = null;
+      }
+      buildGrid();
     }
 
     function removeChannel(idx) {
@@ -2862,9 +2887,24 @@
     }
 
     function addChannelToGrid(ch) {
+      // Aynı kanal zaten grid'de mi?
+      if (activeChannels.some(c => c && c.url === ch.url)) return;
       const emptyIdx = activeChannels.findIndex(c => c === null || c === undefined);
-      if (emptyIdx >= 0) { activeChannels[emptyIdx] = ch; }
-      else { activeChannels[activeChannels.length - 1] = ch; }
+      if (emptyIdx >= 0) {
+        // Boş slot varsa oraya ekle
+        activeChannels[emptyIdx] = ch;
+      } else {
+        // Boş slot yok — listeye ekle (grid boyutu artırılırsa görünür)
+        activeChannels.push(ch);
+        // Kullanıcıyı bilgilendir: grid'i genişlet
+        const cur = gridSize;
+        const next = cur === 1 ? 2 : cur === 2 ? 4 : cur === 4 ? 9 : null;
+        if (next) {
+          const btn = [...document.querySelectorAll('.gbtn')].find(b => b.textContent.trim() === String(next));
+          setGrid(next, btn || null);
+          return; // buildGrid setGrid içinde çağrılacak
+        }
+      }
       buildGrid();
     }
 
