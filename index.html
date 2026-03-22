@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ViewMonitor Pro 4.1 — Global OSINT</title>
+  <title>ViewMonitor Pro 4.2 — Global OSINT</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2156,6 +2156,344 @@
     .amodalbox .ainfo a:hover {
       text-decoration: underline
     }
+
+    /* ── BİLDİRİM PANELİ ── */
+    #notifPanel {
+      position: fixed;
+      top: 44px;
+      right: 0;
+      width: 320px;
+      height: calc(100vh - 44px);
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      z-index: 8000;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform .25s ease;
+      box-shadow: -4px 0 24px rgba(0,0,0,.5)
+    }
+    #notifPanel.open { transform: translateX(0) }
+    .notif-head {
+      padding: 8px 10px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0
+    }
+    .notif-head h3 {
+      font-family: var(--sans);
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--yellow)
+    }
+    .notif-head-btns { display: flex; gap: 4px; align-items: center }
+    #notif-count {
+      background: var(--red);
+      color: #fff;
+      font-size: .55rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 8px;
+      min-width: 18px;
+      text-align: center;
+      display: none
+    }
+    #notif-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--red);
+      color: #fff;
+      font-size: .48rem;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 8px;
+      min-width: 16px;
+      text-align: center;
+      display: none;
+      line-height: 1.4
+    }
+    #notif-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 0
+    }
+    #notif-list::-webkit-scrollbar { width: 3px }
+    #notif-list::-webkit-scrollbar-thumb { background: var(--gdim) }
+    .notif-item {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      cursor: pointer;
+      transition: background .12s;
+      animation: slideIn .2s ease
+    }
+    .notif-item:hover { background: rgba(255,255,255,.03) }
+    .notif-item.alarm { border-left: 3px solid var(--red); background: rgba(255,48,86,.04) }
+    .notif-item.kw    { border-left: 3px solid var(--yellow); background: rgba(255,224,48,.03) }
+    .notif-item.deprem{ border-left: 3px solid var(--cyan); background: rgba(0,212,255,.03) }
+    .notif-item.ai    { border-left: 3px solid var(--purple); background: rgba(176,110,255,.03) }
+    .ni-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 3px;
+      gap: 4px
+    }
+    .ni-title {
+      font-family: var(--sans);
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--yellow);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+    .ni-time {
+      font-size: .52rem;
+      color: var(--tdim);
+      white-space: nowrap;
+      flex-shrink: 0
+    }
+    .ni-body {
+      font-size: .63rem;
+      color: var(--text);
+      line-height: 1.45;
+      font-family: var(--sans)
+    }
+    .ni-tag {
+      font-size: .5rem;
+      padding: 1px 5px;
+      border-radius: 2px;
+      font-family: var(--sans);
+      font-weight: 700;
+      border: 1px solid;
+      display: inline-block;
+      margin-top: 3px
+    }
+    .ni-tag.alarm  { color: var(--red); border-color: var(--red) }
+    .ni-tag.kw     { color: var(--yellow); border-color: var(--yellow) }
+    .ni-tag.deprem { color: var(--cyan); border-color: var(--cyan) }
+    .ni-tag.ai     { color: var(--purple); border-color: var(--purple) }
+    .notif-empty {
+      text-align: center;
+      color: var(--tdim);
+      font-size: .65rem;
+      padding: 32px 12px;
+      line-height: 2
+    }
+
+    /* ── YZ (AI) PANELİ ── */
+    .ai-panel {
+      padding: 8px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+    .ai-header {
+      background: var(--card);
+      border: 1px solid rgba(176,110,255,.3);
+      border-radius: 3px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0
+    }
+    .ai-header-icon { font-size: 1.2rem }
+    .ai-header-text { flex: 1 }
+    .ai-header-title {
+      font-family: var(--sans);
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--purple);
+      letter-spacing: 1px
+    }
+    .ai-header-sub {
+      font-size: .55rem;
+      color: var(--tdim);
+      margin-top: 1px
+    }
+    .ai-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+    .ai-status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green) }
+    .ai-status-dot.inactive { background: var(--tdim) }
+    .ai-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      flex-shrink: 0
+    }
+    .ai-btn {
+      background: var(--card);
+      border: 1px solid rgba(176,110,255,.25);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: .6rem;
+      padding: 7px 6px;
+      cursor: pointer;
+      border-radius: 3px;
+      text-align: center;
+      transition: all .15s;
+      line-height: 1.5
+    }
+    .ai-btn:hover {
+      border-color: var(--purple);
+      color: var(--purple);
+      background: rgba(176,110,255,.07)
+    }
+    .ai-btn.loading {
+      opacity: .6;
+      pointer-events: none
+    }
+    .ai-btn .ai-btn-icon { font-size: .9rem; display: block; margin-bottom: 2px }
+    .ai-soru-box { flex-shrink: 0 }
+    .ai-soru-box label {
+      font-size: .57rem;
+      color: var(--tdim);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      display: block;
+      margin-bottom: 3px
+    }
+    .ai-soru-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: .65rem;
+      padding: 5px 8px;
+      border-radius: 2px;
+      outline: none;
+      resize: none;
+      min-height: 52px
+    }
+    .ai-soru-input:focus { border-color: var(--purple) }
+    .ai-send {
+      width: 100%;
+      margin-top: 4px;
+      background: rgba(176,110,255,.1);
+      border: 1px solid rgba(176,110,255,.4);
+      color: var(--purple);
+      font-family: var(--mono);
+      font-size: .62rem;
+      padding: 6px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all .15s
+    }
+    .ai-send:hover { background: rgba(176,110,255,.2) }
+    .ai-result {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      background: var(--card);
+      border: 1px solid rgba(176,110,255,.18);
+      border-radius: 3px;
+      padding: 8px 10px
+    }
+    .ai-result::-webkit-scrollbar { width: 3px }
+    .ai-result::-webkit-scrollbar-thumb { background: var(--gdim) }
+    .ai-result-empty {
+      color: var(--tdim);
+      font-size: .63rem;
+      text-align: center;
+      padding: 16px 8px;
+      line-height: 2
+    }
+    .ai-result-content {
+      font-size: .68rem;
+      color: var(--text);
+      line-height: 1.65;
+      white-space: pre-wrap;
+      font-family: var(--sans)
+    }
+    .ai-result-meta {
+      font-size: .55rem;
+      color: var(--tdim);
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid var(--border)
+    }
+    .ai-thinking {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--purple);
+      font-size: .65rem;
+      padding: 12px 0
+    }
+    .ai-thinking-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--purple);
+      animation: pulse .8s infinite
+    }
+    .ai-thinking-dot:nth-child(2) { animation-delay: .15s }
+    .ai-thinking-dot:nth-child(3) { animation-delay: .3s }
+
+    /* ── KAMERA PANELİ GELİŞTİRME ── */
+    .cam-subtabs {
+      display: flex;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0
+    }
+    .cam-stab {
+      flex: 1;
+      padding: 5px 2px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--tdim);
+      font-family: var(--mono);
+      font-size: .52rem;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      transition: all .12s
+    }
+    .cam-stab.on { color: var(--cyan); border-bottom-color: var(--cyan) }
+    .cam-stab:hover { color: var(--text) }
+    .cam-subpanel { display: none; flex: 1; flex-direction: column; overflow-y: auto; min-height: 0 }
+    .cam-subpanel.on { display: flex }
+    .cam-subpanel::-webkit-scrollbar { width: 3px }
+    .cam-subpanel::-webkit-scrollbar-thumb { background: var(--gdim) }
+    .cam-city-label {
+      font-size: .55rem;
+      color: var(--orange);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 4px 8px 2px;
+      font-family: var(--mono)
+    }
+    .cam-frame-sm {
+      width: 100%;
+      height: 100px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--card);
+      display: block
+    }
+    .cam-frame-lg {
+      width: 100%;
+      height: 160px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      background: var(--card);
+      display: block
+    }
   </style>
 </head>
 
@@ -2164,7 +2502,7 @@
   <!-- ═══ TOPBAR ═══ -->
   <header id="topbar">
     <div class="brand">VIEW<em>MONITOR</em> <span
-        style="font-size:.55rem;color:var(--tdim);font-weight:400;letter-spacing:1px">PRO 4.1</span></div>
+        style="font-size:.55rem;color:var(--tdim);font-weight:400;letter-spacing:1px">PRO 4.2</span></div>
     <div class="tbsep">|</div>
     <span id="sdot"></span>
     <span id="bstat" style="font-size:.6rem;color:var(--tdim)">BAĞLANIYOR</span>
@@ -2187,7 +2525,7 @@
     <button class="tbtn" onclick="exportYap('csv')">⬇ CSV</button>
     <button class="tbtn" onclick="toggleFSMap()" id="fsbtn">⛶</button>
     <button class="tbtn" onclick="toggleTheme()" id="themebtn" title="Tema değiştir">☀</button>
-    <button class="tbtn" onclick="reqNotif()" id="notbtn">🔔</button>
+    <button class="tbtn" onclick="toggleNotifPanel()" id="notbtn" style="position:relative" title="Bildirimler (🔔)">🔔<span id="notif-badge" style="position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:.45rem;font-weight:700;padding:1px 4px;border-radius:8px;min-width:15px;text-align:center;display:none;line-height:1.5">0</span></button>
     <button class="tbtn on" onclick="toggleGlobalSound()" id="soundbtn" title="Sesi aç/kapat">🔊</button>
     <div id="clock">--:--:--</div>
   </header>
@@ -2197,57 +2535,113 @@
     <div class="ptabs">
       <button class="ptab on" onclick="ptab('cam',this)">📷 KAMERA</button>
       <button class="ptab" onclick="ptab('layer',this)">🗺 KATMAN</button>
+      <button class="ptab" onclick="ptab('ai',this)">🤖 YZ</button>
     </div>
 
-    <!-- KAMERA PANELİ -->
-    <div id="tab-cam" class="tpanel on">
-      <div class="cam-card">
-        <!-- IBB trafik.ibb.gov.tr X-Frame-Options:SAMEORIGIN ile iframe'i blokluyor.
-             Google Maps Traffic embed (API key gerektirmez) ile değiştirildi. -->
-        <iframe class="cam-frame"
-          src="https://maps.google.com/maps?q=istanbul&t=m&layer=traffic&z=12&output=embed&hl=tr"
-          title="İstanbul Trafik" allowfullscreen loading="lazy"></iframe>
-        <div class="cam-info">
-          <b>📍 İSTANBUL — GOOGLE TRAFİK</b>
-          Gerçek zamanlı trafik katmanı
-          <br><a class="cam-link" href="https://trafik.ibb.gov.tr" target="_blank">↗ İBB Trafik (Tam Ekran)</a>
-          &nbsp;|&nbsp;<a class="cam-link" href="https://waze.com/ul?q=istanbul&zoom=13" target="_blank">↗ Waze</a>
+    <!-- KAMERA PANELİ (Geliştirildi) -->
+    <div id="tab-cam" class="tpanel on" style="flex-direction:column;overflow:hidden">
+      <div class="cam-subtabs">
+        <button class="cam-stab on" onclick="camStab('trafik',this)">🚗 TRAFİK</button>
+        <button class="cam-stab" onclick="camStab('canli',this)">📷 CANLI</button>
+        <button class="cam-stab" onclick="camStab('hava',this)">🌤 HAVA</button>
+        <button class="cam-stab" onclick="camStab('links',this)">🔗 KAYNAKLAR</button>
+      </div>
+
+      <!-- TRAFİK -->
+      <div id="csp-trafik" class="cam-subpanel on">
+        <div class="cam-city-label">🇹🇷 İSTANBUL — CANLI TRAFİK</div>
+        <div style="padding:0 7px 4px">
+          <iframe class="cam-frame-lg"
+            src="https://maps.google.com/maps?q=istanbul&t=m&layer=traffic&z=12&output=embed&hl=tr"
+            title="İstanbul Trafik" allowfullscreen loading="lazy"></iframe>
+          <div class="cam-info" style="margin-top:3px">
+            Gerçek zamanlı Google Trafik ·
+            <a class="cam-link" href="https://trafik.ibb.gov.tr" target="_blank">↗ İBB Trafik</a> ·
+            <a class="cam-link" href="https://waze.com/ul?ll=41.0082,28.9784&navigate=yes" target="_blank">↗ Waze</a>
+          </div>
+        </div>
+        <div class="cam-city-label">🇹🇷 ANKARA — TRAFİK</div>
+        <div style="padding:0 7px 4px">
+          <iframe class="cam-frame-sm"
+            src="https://maps.google.com/maps?q=ankara&t=m&layer=traffic&z=12&output=embed&hl=tr"
+            title="Ankara Trafik" allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="cam-city-label">🇹🇷 İZMİR — TRAFİK</div>
+        <div style="padding:0 7px 6px">
+          <iframe class="cam-frame-sm"
+            src="https://maps.google.com/maps?q=izmir&t=m&layer=traffic&z=12&output=embed&hl=tr"
+            title="İzmir Trafik" allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="cam-city-label">🌍 ORTA DOĞU / BÖLGESEL</div>
+        <div style="padding:0 7px 8px">
+          <iframe class="cam-frame-sm"
+            src="https://maps.google.com/maps?q=middle+east&t=m&layer=traffic&z=5&output=embed&hl=tr"
+            title="Orta Doğu Trafik" allowfullscreen loading="lazy"></iframe>
         </div>
       </div>
-      <div class="cam-card">
-        <iframe class="cam-frame"
-          src="https://embed.windy.com/embed2.html?lat=39&lon=35&zoom=5&level=surface&overlay=wind&product=ecmwf&menu=false&message=true&type=map&metricWind=km%2Fh&metricTemp=%C2%B0C"
-          title="Windy TR" allowfullscreen></iframe>
-        <div class="cam-info">
-          <b>🌬 HAVA / RÜZGAR — TÜRKİYE</b>
-          Windy.com ECMWF gerçek zamanlı
+
+      <!-- CANLI KAMERALAR -->
+      <div id="csp-canli" class="cam-subpanel">
+        <div class="cam-city-label">📡 İSTANBUL CANLI KAMERA</div>
+        <div style="padding:0 7px 4px">
+          <iframe class="cam-frame-lg"
+            src="https://www.youtube.com/embed/WnxrQ_VLzKo?autoplay=1&mute=1&controls=0&rel=0"
+            title="İstanbul Canlı Kamera" allow="autoplay" allowfullscreen loading="lazy"></iframe>
+          <div class="cam-info" style="margin-top:2px">Boğaz Köprüsü & Şehir — Canlı Akış</div>
+        </div>
+        <div class="cam-city-label">🌍 DÜNYA CANLI KAMERALAR</div>
+        <div class="cam-ext" style="padding:4px 7px">
+          <a href="https://www.earthcam.com/world/turkey/istanbul/" target="_blank"><span>🌆</span>İstanbul EarthCam</a>
+          <a href="https://www.skylinewebcams.com/en/webcam/turkey/istanbul.html" target="_blank"><span>🏙</span>İstanbul Skyline</a>
+          <a href="https://kgm.gov.tr/sayfalar/kgm/trafikkamera.aspx" target="_blank"><span>🛣</span>KGM Otoyol Kameraları</a>
+          <a href="https://www.earthcam.com/world/israel/jerusalem/" target="_blank"><span>🇮🇱</span>Kudüs EarthCam</a>
+          <a href="https://www.earthcam.com/world/ukraine/kyiv/" target="_blank"><span>🇺🇦</span>Kyiv EarthCam</a>
+          <a href="https://www.insecam.org/en/bycountry/TR/" target="_blank"><span>📡</span>TR IP Kamera Listesi</a>
+          <a href="https://www.opentopia.com/hiddencam.php?country=TU" target="_blank"><span>📷</span>Türkiye Webcam</a>
+          <a href="https://worldcam.eu/category/turkey" target="_blank"><span>🌐</span>WorldCam Türkiye</a>
         </div>
       </div>
-      <div class="cam-ext">
-        <a href="https://kgm.gov.tr/sayfalar/kgm/trafikkamera.aspx" target="_blank">
-          <span>🛣</span>KGM Otoyol Kameraları (Tüm Türkiye)
-        </a>
-        <a href="https://www.earthcam.com/world/turkey/istanbul/" target="_blank">
-          <span>🌆</span>İstanbul EarthCam
-        </a>
-        <a href="https://www.skylinewebcams.com/en/webcam/turkey.html" target="_blank">
-          <span>📷</span>Türkiye Web Kameraları
-        </a>
-        <a href="https://zoom.earth" target="_blank">
-          <span>🛰</span>Zoom.Earth Uydu Görüntüsü
-        </a>
-        <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank">
-          <span>🛰</span>Sentinel Hub — EO Browser
-        </a>
-        <a href="https://www.earthcam.com/world/israel/" target="_blank">
-          <span>🇮🇱</span>İsrail EarthCam
-        </a>
-        <a href="https://www.earthcam.com/world/ukraine/" target="_blank">
-          <span>🇺🇦</span>Ukrayna EarthCam
-        </a>
-        <a href="https://www.insecam.org/en/bycountry/TR/" target="_blank">
-          <span>📡</span>Türkiye IP Kamera Listesi
-        </a>
+
+      <!-- HAVA & UYDU -->
+      <div id="csp-hava" class="cam-subpanel">
+        <div class="cam-city-label">🌬 RÜZGAR & HAVA — TÜRKİYE</div>
+        <div style="padding:0 7px 4px">
+          <iframe class="cam-frame-lg"
+            src="https://embed.windy.com/embed2.html?lat=39&lon=35&zoom=5&level=surface&overlay=wind&product=ecmwf&menu=false&message=true&type=map&metricWind=km%2Fh&metricTemp=%C2%B0C"
+            title="Windy TR" allowfullscreen></iframe>
+          <div class="cam-info" style="margin-top:2px">Windy.com ECMWF — Gerçek zamanlı</div>
+        </div>
+        <div class="cam-city-label">☁ BULUT / YAĞIŞ RADARI</div>
+        <div style="padding:0 7px 4px">
+          <iframe class="cam-frame-sm"
+            src="https://embed.windy.com/embed2.html?lat=39&lon=35&zoom=5&level=surface&overlay=rain&product=ecmwf&menu=false&message=true&type=map&metricRain=mm&metricTemp=%C2%B0C"
+            title="Yağış Radarı" allowfullscreen></iframe>
+        </div>
+        <div class="cam-ext" style="padding:4px 7px">
+          <a href="https://zoom.earth" target="_blank"><span>🛰</span>Zoom.Earth Uydu Görüntüsü</a>
+          <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank"><span>🛰</span>Sentinel Hub EO Browser</a>
+          <a href="https://www.meteoblue.com/tr/hava/harita/istanbul" target="_blank"><span>⛅</span>MeteoBlue İstanbul</a>
+          <a href="https://www.ventusky.com/?p=39;35;5&l=wind" target="_blank"><span>💨</span>Ventusky Rüzgar</a>
+        </div>
+      </div>
+
+      <!-- HIZLI KAYNAKLAR -->
+      <div id="csp-links" class="cam-subpanel">
+        <div class="cam-ext" style="padding:6px 8px">
+          <a href="https://trafik.ibb.gov.tr" target="_blank"><span>🚦</span>İBB Trafik Portalı</a>
+          <a href="https://kgm.gov.tr/sayfalar/kgm/trafikkamera.aspx" target="_blank"><span>🛣</span>KGM Otoyol Kameraları</a>
+          <a href="https://yandex.com.tr/haritalar/?ll=28.9784,41.0082&z=11&l=trf" target="_blank"><span>🗺</span>Yandex Trafik TR</a>
+          <a href="https://www.earthcam.com/world/turkey/istanbul/" target="_blank"><span>📷</span>İstanbul EarthCam</a>
+          <a href="https://www.skylinewebcams.com/en/webcam/turkey.html" target="_blank"><span>🎥</span>Türkiye Webcamları</a>
+          <a href="https://zoom.earth" target="_blank"><span>🛰</span>Zoom.Earth Uydu</a>
+          <a href="https://apps.sentinel-hub.com/eo-browser/" target="_blank"><span>🛰</span>Sentinel Hub</a>
+          <a href="https://globe.adsbexchange.com/?lat=38&lon=35&zoom=5" target="_blank"><span>✈</span>ADS-B Uçuş Takip</a>
+          <a href="https://www.marinetraffic.com" target="_blank"><span>🚢</span>MarineTraffic AIS</a>
+          <a href="https://liveuamap.com/" target="_blank"><span>⚔</span>LiveUAMap Çatışma</a>
+          <a href="https://deepstatemap.live/en" target="_blank"><span>🇺🇦</span>DeepStateMap Ukrayna</a>
+          <a href="https://earthquake.usgs.gov/earthquakes/map/" target="_blank"><span>⚡</span>USGS Deprem Haritası</a>
+          <a href="https://deprem.afad.gov.tr" target="_blank"><span>🇹🇷</span>AFAD Deprem Merkezi</a>
+        </div>
       </div>
     </div>
 
@@ -2308,6 +2702,53 @@
         <iframe id="windyframe" src=""
           style="display:none;width:100%;height:200px;border:1px solid var(--border);border-radius:2px;margin-top:6px"
           frameborder="0"></iframe>
+      </div>
+    </div>
+
+    <!-- YZ (AI) PANELİ -->
+    <div id="tab-ai" class="tpanel" style="flex-direction:column;overflow:hidden">
+      <div class="ai-panel">
+        <div class="ai-header">
+          <div class="ai-header-icon">🤖</div>
+          <div class="ai-header-text">
+            <div class="ai-header-title">YZ ANALİZ SİSTEMİ</div>
+            <div class="ai-header-sub" id="ai-status-text">Hazır — API durumu kontrol ediliyor</div>
+          </div>
+          <div class="ai-status-dot inactive" id="ai-status-dot"></div>
+        </div>
+
+        <div class="ai-btns">
+          <button class="ai-btn" onclick="aiYap('brifing')" id="ai-btn-brifing">
+            <span class="ai-btn-icon">📊</span>
+            Günlük Brifing
+          </button>
+          <button class="ai-btn" onclick="aiYap('alarm')" id="ai-btn-alarm">
+            <span class="ai-btn-icon">⚠</span>
+            Alarm Analizi
+          </button>
+          <button class="ai-btn" onclick="aiYap('ozet')" id="ai-btn-ozet">
+            <span class="ai-btn-icon">📝</span>
+            Haber Özet
+          </button>
+          <button class="ai-btn" onclick="aiYap('tehdit')" id="ai-btn-tehdit">
+            <span class="ai-btn-icon">🎯</span>
+            Tehdit Haritası
+          </button>
+        </div>
+
+        <div class="ai-soru-box">
+          <label>Soru Sor</label>
+          <textarea class="ai-soru-input" id="ai-soru" rows="2"
+            placeholder="Mevcut haberler hakkında soru sor... (Enter ile gönder)"></textarea>
+          <button class="ai-send" onclick="aiSorGonder()">↗ GÖNDER</button>
+        </div>
+
+        <div class="ai-result" id="ai-result">
+          <div class="ai-result-empty">
+            🤖 Analiz için yukarıdaki butonlardan birini kullanın<br>
+            <span style="font-size:.58rem;color:var(--tdim)">Son 25 haber otomatik yüklenir</span>
+          </div>
+        </div>
       </div>
     </div>
   </aside>
@@ -2433,6 +2874,24 @@
     </div>
   </aside>
 
+  <!-- ═══ BİLDİRİM PANELİ ═══ -->
+  <div id="notifPanel">
+    <div class="notif-head">
+      <h3>🔔 BİLDİRİMLER</h3>
+      <div class="notif-head-btns">
+        <span id="notif-count">0</span>
+        <button class="tbtn" style="font-size:.52rem;padding:2px 6px" onclick="clearNotifs()">SİL</button>
+        <button class="tbtn" style="font-size:.52rem;padding:2px 6px" onclick="toggleNotifPanel()">✕</button>
+      </div>
+    </div>
+    <div id="notif-list">
+      <div class="notif-empty">
+        🔔 Henüz bildirim yok<br>
+        <span style="font-size:.58rem">Alarm, deprem ve anahtar kelime eşleşmeleri burada görünür</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Search modal -->
   <div id="searchmodal">
     <div class="smhead">
@@ -2547,12 +3006,12 @@
         { flag: '🌍', name: 'AL JAZEERA EN', url: 'https://live-hls-web-aje.getaj.net/AJE/index.m3u8' },
         { flag: '🇫🇷', name: 'FRANCE 24 EN', url: 'https://static.france24.com/live/F24_EN_HI_HLS/live_tv.m3u8' },
         { flag: '🇩🇪', name: 'DW NEWS', url: 'https://dwamdstream102.akamaized.net/hls/live/2015533/dwstream102/index.m3u8' },
-        { flag: '🇯🇵', name: 'NHK WORLD', url: 'https://nhkworldjp-nhkwjp-4-jl.rakuten.wurl.com/manifest/playlist.m3u8' },
+        { flag: '🇯🇵', name: 'NHK WORLD', url: 'https://nhkworldjp-nhkwjp-4-jl.rakuten.wurl.com/manifest/playlist.m3u8', fallback: 'https://www.youtube.com/embed/nSOn1BeHR3A?autoplay=1&mute=1' },
         { flag: '🇨🇳', name: 'CGTN', url: 'https://news.cgtn.com/resource/live/english/cgtn-news.m3u8' },
         // YouTube
         { flag: '🇺🇸', name: 'PBS NEWSHOUR', url: 'https://www.youtube.com/embed/nPYHKCpTWPE?autoplay=1&mute=1', yt: true },
         { flag: '🇬🇧', name: 'BBC WORLD', url: 'https://www.youtube.com/embed/w_Ma8oQLmSM?autoplay=1&mute=1', yt: true },
-        { flag: '🇺🇸', name: 'ABC NEWS', url: 'https://www.youtube.com/embed/w_Ma8oQLmSM?autoplay=1&mute=1', yt: true },
+        { flag: '🇺🇸', name: 'ABC NEWS', url: 'https://www.youtube.com/embed/vOTiJkg1voo?autoplay=1&mute=1', yt: true },
         { flag: '🇺🇸', name: 'BLOOMBERG', url: 'https://www.youtube.com/embed/dp8PhLsUcFE?autoplay=1&mute=1', yt: true },
         { flag: '🇷🇺', name: 'RT NEWS', url: 'https://www.youtube.com/embed/ImoNuiCIYPQ?autoplay=1&mute=1', yt: true },
       ],
@@ -2687,10 +3146,16 @@
           vEl.play().catch(() => { });
         });
         h.on(Hls.Events.ERROR, (_, d) => {
-          if (d.fatal && retry < 4) {
-            setTimeout(() => loadHLS(idx, url, retry + 1), 8000 * (retry + 1));
+          if (d.fatal && retry < 3) {
+            setTimeout(() => loadHLS(idx, url, retry + 1), 6000 * (retry + 1));
           } else if (d.fatal) {
-            // H: 4 retry sonrası hata overlay göster
+            // Fallback URL varsa dene (ör. NHK World → YouTube)
+            const ch = activeChannels[idx];
+            if (ch && ch.fallback && retry >= 3) {
+              activeChannels[idx] = { ...ch, url: ch.fallback, yt: true, fallback: null };
+              buildGrid();
+              return;
+            }
             if (ld) ld.style.display = 'none';
             if (er) er.classList.add('show');
           }
@@ -3186,6 +3651,15 @@
       document.getElementById('tab-' + id).classList.add('on');
       btn.classList.add('on');
       if (id === 'tv') setTimeout(() => map.invalidateSize(), 100);
+      if (id === 'ai') checkAiStatus();
+    }
+
+    // ── KAMERA ALT SEKME ──
+    function camStab(id, btn) {
+      document.querySelectorAll('.cam-stab').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      document.querySelectorAll('.cam-subpanel').forEach(p => p.classList.remove('on'));
+      document.getElementById('csp-' + id).classList.add('on');
     }
 
     // ── SEARCH MODAL ──
@@ -3246,7 +3720,6 @@
       if (!('Notification' in window)) return;
       const p = await Notification.requestPermission();
       notifOn = p === 'granted';
-      if (notifOn) { document.getElementById('notbtn').textContent = '🔔 AKTİF'; document.getElementById('notbtn').classList.add('on'); }
     }
     function pushNotif(t, b) { if (notifOn) new Notification(t, { body: b }); }
     let _lastBeepTime = 0;
@@ -3343,6 +3816,7 @@
             addAlarmMarker(m); beep(true); // critical=true
             toast('⚠ ' + m.hedef_isim, m.mesaj_ceviri);
             pushNotif('⚠ ViewMonitor: ' + m.hedef_isim, m.mesaj_ceviri);
+            addNotif('alarm', '⚠ ' + (m.hedef_isim || m.kaynak), m.mesaj_ceviri, m.koordinat);
           }
 
           // Deprem kaynakları için alert bar (USGS, AFAD, Kandilli)
@@ -3351,6 +3825,7 @@
             const magM = parseFloat((m.kaynak || '').match(/M([\d.]+)/)?.[1] || 0) ||
               parseFloat((m.mesaj_ceviri || '').match(/M([\d.]+)/)?.[1] || 0);
             showQuakeBar(m.mesaj_ceviri, magM, m.koordinat);
+            if (magM >= 4.0) addNotif('deprem', '⚡ ' + (m.kaynak||'Deprem'), m.mesaj_ceviri, m.koordinat);
             if (magM >= 5.5 && !m.ai_tespit) {
               addAlarmMarker(m); beep(true);
               toast('⚡ BÜYÜK DEPREM', m.mesaj_ceviri);
@@ -3362,8 +3837,10 @@
             setTimeout(loadQuakeChart, 2000);
           }
 
-          if (kwMatch((m.mesaj_ceviri || '') + (m.mesaj_orijinal || '')) && !m.ai_tespit)
+          if (kwMatch((m.mesaj_ceviri || '') + (m.mesaj_orijinal || '')) && !m.ai_tespit) {
             toast('🔍 KELİME', m.mesaj_ceviri, 'info');
+            addNotif('kw', '🔍 ' + (m.kaynak || 'Anahtar Kelime'), m.mesaj_ceviri, m.koordinat || null);
+          }
 
           // Devre dışı kaynakları filtrele
           if (disabledSources.has(m.kaynak_tip)) { updateStats(); return; }
@@ -3436,6 +3913,184 @@
       if (bar) bar.classList.remove('show');
     }
 
+
+    // ══════════════════════════════════════════
+    // BİLDİRİM PANELİ
+    // ══════════════════════════════════════════
+    let _notifCount = 0;
+    let _notifPanelOpen = false;
+
+    function toggleNotifPanel() {
+      _notifPanelOpen = !_notifPanelOpen;
+      document.getElementById('notifPanel').classList.toggle('open', _notifPanelOpen);
+      if (_notifPanelOpen) {
+        _notifCount = 0;
+        const badge = document.getElementById('notif-badge');
+        if (badge) badge.style.display = 'none';
+        reqNotif();
+      }
+    }
+
+    function addNotif(tip, baslik, mesaj, koordinat) {
+      const list = document.getElementById('notif-list');
+      if (!list) return;
+      const empty = list.querySelector('.notif-empty');
+      if (empty) empty.remove();
+      const tagLabels = { alarm:'⚠ ALARM', deprem:'⚡ DEPREM', kw:'🔍 KELİME', ai:'🤖 AI' };
+      const item = document.createElement('div');
+      item.className = 'notif-item ' + tip;
+      const head = document.createElement('div'); head.className = 'ni-head';
+      const ttl = document.createElement('span'); ttl.className = 'ni-title'; ttl.textContent = baslik;
+      const tm  = document.createElement('span'); tm.className  = 'ni-time';
+      tm.textContent = new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      head.appendChild(ttl); head.appendChild(tm);
+      const body = document.createElement('div'); body.className = 'ni-body';
+      body.textContent = (mesaj||'').substring(0,140);
+      const tag = document.createElement('span'); tag.className = 'ni-tag ' + tip;
+      tag.textContent = tagLabels[tip] || tip.toUpperCase();
+      item.appendChild(head); item.appendChild(body); item.appendChild(tag);
+      if (koordinat) {
+        item.style.cursor = 'pointer';
+        item.onclick = () => { map.flyTo(koordinat, 8,{animate:true,duration:1.5}); toggleNotifPanel(); };
+      }
+      list.insertBefore(item, list.firstChild);
+      while (list.children.length > 60) list.removeChild(list.lastChild);
+      _notifCount++;
+      const cnt = document.getElementById('notif-count');
+      if (cnt) { cnt.textContent = _notifCount; cnt.style.display = _notifCount > 0 ? 'inline-block' : 'none'; }
+      if (!_notifPanelOpen) {
+        const badge = document.getElementById('notif-badge');
+        if (badge) { badge.textContent = _notifCount > 99 ? '99+' : _notifCount; badge.style.display = 'block'; }
+      }
+    }
+
+    function clearNotifs() {
+      const list = document.getElementById('notif-list');
+      if (list) { list.textContent = ''; const em = document.createElement('div'); em.className = 'notif-empty'; em.textContent = '🔔 Bildirimler temizlendi'; list.appendChild(em); }
+      _notifCount = 0;
+      const cnt = document.getElementById('notif-count');
+      if (cnt) { cnt.textContent = '0'; cnt.style.display = 'none'; }
+      const badge = document.getElementById('notif-badge');
+      if (badge) badge.style.display = 'none';
+    }
+
+    // ══════════════════════════════════════════
+    // YZ (AI) PANELİ
+    // ══════════════════════════════════════════
+    let _aiAktif = null;
+
+    function _aiSetResult(content, meta, soru) {
+      const box = document.getElementById('ai-result');
+      if (!box) return;
+      box.textContent = '';
+      if (soru) {
+        const q = document.createElement('div');
+        q.style.cssText = 'font-size:.6rem;color:var(--tdim);margin-bottom:6px';
+        q.textContent = '❓ ' + soru;
+        box.appendChild(q);
+      }
+      const c = document.createElement('div'); c.className = 'ai-result-content';
+      c.textContent = content; box.appendChild(c);
+      if (meta) {
+        const m = document.createElement('div'); m.className = 'ai-result-meta';
+        m.textContent = meta; box.appendChild(m);
+      }
+    }
+
+    function _aiSetThinking(msg) {
+      const box = document.getElementById('ai-result');
+      if (!box) return;
+      box.textContent = '';
+      const wrap = document.createElement('div'); wrap.className = 'ai-thinking';
+      for (let i = 0; i < 3; i++) { const d = document.createElement('div'); d.className = 'ai-thinking-dot'; wrap.appendChild(d); }
+      const s = document.createElement('span'); s.textContent = msg || 'AI analiz yapıyor...';
+      wrap.appendChild(s); box.appendChild(wrap);
+    }
+
+    function _aiGetFeedNews(max) {
+      const cards = document.querySelectorAll('#feed .card');
+      const out = [];
+      cards.forEach((c, i) => {
+        if (i >= max) return;
+        const trans = c.querySelector('.ctrans') ? c.querySelector('.ctrans').textContent.trim() : '';
+        const src   = c.querySelector('.csrc')   ? c.querySelector('.csrc').textContent.trim()   : '';
+        const prio  = c.querySelector('.cprio')  ? c.querySelector('.cprio').textContent.trim()  : 'DÜŞÜK';
+        if (trans) out.push({ mesaj_ceviri: trans, kaynak: src, oncelik_etiket: prio, ai_tespit: c.dataset.alarm === '1' });
+      });
+      return out;
+    }
+
+    async function checkAiStatus() {
+      if (!API) return;
+      try {
+        const r = await fetch(API + '/api/durum');
+        const d = await r.json();
+        const dot  = document.getElementById('ai-status-dot');
+        const text = document.getElementById('ai-status-text');
+        if (parseFloat(d.versiyon || '0') >= 4.2) {
+          if (dot) dot.className = 'ai-status-dot active';
+          if (text) text.textContent = 'AI endpoint aktif';
+        } else {
+          if (dot) dot.className = 'ai-status-dot inactive';
+          if (text) text.textContent = 'Backend güncellemesi gerekli (v4.2+)';
+        }
+      } catch(e) {}
+    }
+
+    async function aiYap(mod) {
+      if (!API) { toast('⚠', 'API bağlı değil', 'danger'); return; }
+      const btnMap = { brifing:'ai-btn-brifing', alarm:'ai-btn-alarm', ozet:'ai-btn-ozet', tehdit:'ai-btn-tehdit' };
+      const btn = document.getElementById(btnMap[mod]);
+      if (btn) btn.classList.add('loading');
+      _aiSetThinking('AI analiz yapıyor...');
+      const haberler = _aiGetFeedNews(25);
+      const realMod = mod === 'tehdit' ? 'alarm' : mod;
+      try {
+        const r = await fetch(API + '/api/ai_analiz', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ mod: realMod, haberler })
+        });
+        const d = await r.json();
+        _aiAktif = d.ai_aktif;
+        const aiLabel = d.ai_aktif ? '🟢 Groq AI' : '🟡 Kural Tabanlı';
+        _aiSetResult(d.analiz, aiLabel + ' · ' + (d.kaynak_sayisi||haberler.length) + ' haber · ' + new Date().toLocaleTimeString('tr-TR'));
+        addNotif('ai', 'YZ Analiz Tamamlandı', (d.analiz||'').substring(0,100), null);
+        const dot  = document.getElementById('ai-status-dot');
+        const text = document.getElementById('ai-status-text');
+        if (dot) dot.className = 'ai-status-dot ' + (d.ai_aktif ? 'active' : 'inactive');
+        if (text) text.textContent = d.ai_aktif ? '🟢 Groq LLM aktif' : '🟡 Kural tabanlı mod';
+      } catch(e) {
+        _aiSetResult('⚠ Bağlantı hatası: ' + e.message, null);
+      } finally {
+        if (btn) btn.classList.remove('loading');
+      }
+    }
+
+    async function aiSorGonder() {
+      const inp = document.getElementById('ai-soru');
+      const soru = inp ? inp.value.trim() : '';
+      if (!soru) return;
+      if (!API) { toast('⚠', 'API bağlı değil', 'danger'); return; }
+      _aiSetThinking('Yanıt oluşturuluyor...');
+      const haberler = _aiGetFeedNews(20);
+      try {
+        const r = await fetch(API + '/api/ai_analiz', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ mod:'soru', soru, haberler })
+        });
+        const d = await r.json();
+        const aiLabel = d.ai_aktif ? '🟢 Groq AI' : '🟡 Kural Tabanlı';
+        _aiSetResult(d.analiz, aiLabel + ' · ' + new Date().toLocaleTimeString('tr-TR'), soru);
+        if (inp) inp.value = '';
+      } catch(e) {
+        _aiSetResult('⚠ Hata: ' + e.message, null);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const aiInp = document.getElementById('ai-soru');
+      if (aiInp) aiInp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); aiSorGonder(); } });
+    });
 
     // ── INIT ──
     initTV();
@@ -3518,10 +4173,18 @@
     function setPreset(url) {
       document.getElementById('apiurl').value = url;
     }
-    // Show change API button in topbar
-    document.getElementById('notbtn').insertAdjacentHTML('afterend',
-      '<button class="tbtn" onclick="document.getElementById(\'apimodal\').classList.remove(\'hidden\')" title="API Adresi Değiştir" style="margin-left:2px">⚙ API</button>'
-    );
+    // ⚙ API button (added to topbar dynamically)
+    (function() {
+      const refBtn = document.getElementById('notbtn');
+      if (!refBtn) return;
+      const apiBtn = document.createElement('button');
+      apiBtn.className = 'tbtn';
+      apiBtn.title = 'API Adresi Değiştir';
+      apiBtn.style.marginLeft = '2px';
+      apiBtn.textContent = '⚙ API';
+      apiBtn.onclick = function() { document.getElementById('apimodal').classList.remove('hidden'); };
+      refBtn.insertAdjacentElement('afterend', apiBtn);
+    })();
     // Init on load
 
     function showToast(msg, dur = 3000) {

@@ -30,6 +30,7 @@ from langdetect import LangDetectException, detect
 # CONFIG
 # ══════════════════════════════════════════════
 TWITTER_BEARER         = os.environ.get("TWITTER_BEARER", "")
+GROQ_API_KEY           = os.environ.get("GROQ_API_KEY", "")
 # Düzeltme: /tmp yerine /app/data — Docker ve Render'da kalıcı depolama için
 # Render'da env var ile: DB_PATH=/var/data/viewmonitor.db
 DB_PATH                = os.environ.get("DB_PATH", "/app/data/viewmonitor.db")
@@ -949,7 +950,7 @@ async def lifespan(app: FastAPI):
 # ══════════════════════════════════════════════
 # API
 # ══════════════════════════════════════════════
-app = FastAPI(title="ViewMonitor Pro API",version="4.1.0",lifespan=lifespan)
+app = FastAPI(title="ViewMonitor Pro API",version="4.2.0",lifespan=lifespan)
 
 # Düzeltme: CORS — ALLOW_ORIGIN env var'dan okunur, virgülle birden fazla origin eklenebilir
 # Örnek .env: ALLOW_ORIGIN=https://tmgemini900.github.io,https://baska.site.com
@@ -982,7 +983,7 @@ def root():
 async def saglik():
     stats = await db_saydir()
     return {
-        "durum":"aktif","versiyon":"4.1",
+        "durum":"aktif","versiyon":"4.2",
         "zaman":datetime.now().isoformat(),"db":stats,
         "scheduler":scheduler.running if scheduler else False,
         "sse_bagli":len(sse_clients),"sse_limit":MAX_SSE_CLIENTS,
@@ -1067,6 +1068,119 @@ def lokasyonlar():
 def kaynaklar():
     return {"rss":len(RSS_KAYNAKLARI),"telegram":len(TELEGRAM_KANALLARI),
             "twitter":len(NITTER_HESAPLARI),"liste_rss":RSS_KAYNAKLARI}
+
+# ── AI ANALİZ ──────────────────────────────────
+async def groq_analiz(prompt: str, sistem: str = "") -> str:
+    """Groq API (llama-3.3-70b) ile hızlı AI analizi. Key yoksa boş döner."""
+    if not GROQ_API_KEY:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as c:
+            r = await c.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}",
+                         "Content-Type": "application/json"},
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [
+                        {"role": "system", "content": sistem or
+                         "Sen deneyimli bir OSINT analisti ve istihbarat uzmanısın. "
+                         "Türkçe, kısa ve öz yanıt ver. Madde listesi kullan."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "max_tokens": 700,
+                    "temperature": 0.25
+                }
+            )
+            d = r.json()
+            return d["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        logger.error("Groq API: %s", e)
+        return ""
+
+@app.post("/api/ai_analiz")
+async def ai_analiz_ep(request: Request):
+    """AI ile haber analizi ve özetleme."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Geçersiz JSON")
+    soru     = body.get("soru", "").strip()
+    haberler = body.get("haberler", [])
+    mod      = body.get("mod", "brifing")  # brifing | alarm | soru | ozet
+
+    # Kaynak haberleri belirle
+    if haberler:
+        ctx_items = haberler[:25]
+    else:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            if mod == "alarm":
+                async with db.execute(
+                    "SELECT * FROM haberler WHERE ai_tespit=1 ORDER BY rowid DESC LIMIT 20"
+                ) as cur:
+                    ctx_items = [dict(r) for r in await cur.fetchall()]
+            else:
+                async with db.execute(
+                    "SELECT * FROM haberler ORDER BY rowid DESC LIMIT 25"
+                ) as cur:
+                    ctx_items = [dict(r) for r in await cur.fetchall()]
+
+    ctx = "\n".join(
+        f"[{h.get('oncelik_etiket','?')}] [{h.get('kaynak','')}] {h.get('mesaj_ceviri','')} "
+        f"({h.get('zaman','')})"
+        for h in ctx_items
+    )
+
+    if not ctx.strip():
+        return {"analiz": "Henüz yeterli haber verisi yok.", "ai_aktif": bool(GROQ_API_KEY)}
+
+    # Prompt seç
+    if mod == "alarm":
+        prompt = (
+            f"Aşağıdaki YÜKSEK ÖNCELİKLİ olayları analiz et:\n\n{ctx}\n\n"
+            "Yanıt formatı:\n⚠ ANA TEHDİTLER (3-4 madde)\n🌍 ETKİLENEN BÖLGELER\n📊 RİSK DEĞERLENDİRMESİ"
+        )
+    elif mod == "ozet":
+        prompt = (
+            f"Şu haberleri 5 cümlede özetle (Türkçe, nesnel):\n\n{ctx}"
+        )
+    elif soru:
+        prompt = f"Mevcut haberler:\n{ctx}\n\nSoru: {soru}"
+    else:  # brifing
+        prompt = (
+            f"Aşağıdaki son haberlere dayanarak OSINT günlük brifing raporu hazırla:\n\n{ctx}\n\n"
+            "Format:\n"
+            "📌 GÜNÜN ANA GELİŞMELERİ (4-5 madde)\n"
+            "⚠ ÖNE ÇIKAN RİSKLER (2-3 madde)\n"
+            "🌍 BÖLGESEL DURUM\n"
+            "📊 GENEL DEĞERLENDİRME (2 cümle)"
+        )
+
+    if GROQ_API_KEY:
+        analiz = await groq_analiz(prompt)
+        if not analiz:
+            analiz = "⚠ AI yanıt alınamadı. Groq API kotası dolmuş olabilir."
+    else:
+        # Rule-based özet
+        alarm_c  = sum(1 for h in ctx_items if h.get("ai_tespit"))
+        kaynaklar = list(dict.fromkeys(h.get("kaynak", "") for h in ctx_items))[:6]
+        yuksek   = [h for h in ctx_items if h.get("oncelik_etiket") in ("KRİTİK", "YÜKSEK")]
+        analiz = (
+            f"📊 HABER ÖZETİ ({len(ctx_items)} haber)\n\n"
+            f"⚠ Yüksek öncelikli: {len(yuksek)} olay | Alarm: {alarm_c}\n"
+            f"📡 Kaynaklar: {', '.join(kaynaklar)}\n\n"
+            + ("\n".join(f"• {h['mesaj_ceviri'][:120]}" for h in yuksek[:5]) or "• Kritik olay yok")
+            + "\n\n💡 Tam AI analizi için GROQ_API_KEY ortam değişkeni gerekli (groq.com — ücretsiz)"
+        )
+
+    return {"analiz": analiz, "ai_aktif": bool(GROQ_API_KEY), "kaynak_sayisi": len(ctx_items)}
+
+@app.get("/api/son_haberler")
+async def son_haberler_ep(limit: int = Query(30, ge=1, le=100), tip: str = Query(""), alarm: bool = Query(False)):
+    """AI analizi ve özet için son haberleri döner."""
+    data = await db_listele(limit=limit, tip=tip if tip else "all", alarm=alarm)
+    return {"haberler": data, "adet": len(data)}
 
 @app.post("/api/tetikle")
 async def tetikle():
