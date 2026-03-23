@@ -1852,12 +1852,9 @@
     }
     .ptabs .panel-tgl:hover { background: rgba(0,212,255,.12); color: var(--cyan) }
 
-    /* ─── PANEL KÜÇÜLT / GERI GETİR ─── */
+    /* ─── PANEL AÇ / KAPAT ─── */
+    /* Sol panel: 40px şerit (sadece ikon görünür) */
     body.min-left  { grid-template-columns: 40px 1fr 340px 260px }
-    body.min-right { grid-template-columns: 300px 1fr 40px 260px }
-    body.min-notif { grid-template-columns: 300px 1fr 340px 40px }
-
-    /* left panel küçültüldü */
     body.min-left #left .ptab,
     body.min-left #left .tpanel,
     body.min-left #tvpanel { display: none !important }
@@ -1866,30 +1863,35 @@
       justify-content: flex-start; overflow: hidden
     }
 
-    /* right panel küçültüldü */
-    body.min-right #right .sbar,
-    body.min-right #right .sfilter,
-    body.min-right #right #feed,
-    body.min-right #right #stats,
-    body.min-right #right #quakeChart { display: none !important }
-    body.min-right .rhead h2 { display: none }
-    body.min-right .rhead {
-      flex-direction: column; padding: 6px 0;
-      justify-content: flex-start; align-items: center
-    }
-    body.min-right .rheadbtns { flex-direction: column; align-items: center; gap: 6px }
-    body.min-right .rheadbtns .tbtn { display: none }
+    /* Sağ ve bildirim: tamamen gizle */
+    body.min-right { grid-template-columns: 300px 1fr 0 260px }
+    body.min-right #right { display: none }
 
-    /* notif panel küçültüldü */
-    body.min-notif #notif-list { display: none !important }
-    body.min-notif .notif-head {
-      flex-direction: column; padding: 6px 0;
-      justify-content: flex-start; align-items: center
+    body.min-notif { grid-template-columns: 300px 1fr 340px 0 }
+    body.min-notif #notifPanel { display: none }
+
+    /* Topbar restore butonları — panel kapalıyken görünür */
+    #restore-right { display: none }
+    #restore-notif { display: none }
+    body.min-right  #restore-right { display: inline-flex !important }
+    body.min-notif  #restore-notif { display: inline-flex !important }
+    body.min-notif  #notbtn        { border-color: var(--yellow); color: var(--yellow) }
+
+    /* Topbar restore badge */
+    .restore-badge {
+      background: var(--red);
+      color: #fff;
+      font-size: .48rem;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 8px;
+      min-width: 14px;
+      text-align: center;
+      display: none;
+      vertical-align: super;
+      margin-left: 2px
     }
-    body.min-notif .notif-head h3 { display: none }
-    body.min-notif .notif-head-btns { flex-direction: column; align-items: center; gap: 6px }
-    body.min-notif .notif-head-btns .tbtn { display: none }
-    body.min-notif #notif-count { display: none !important }
+    .restore-badge.show { display: inline-block }
 
 
     /* ─── MOBILE RESPONSIVE ─── */
@@ -2604,7 +2606,9 @@
     <button class="tbtn" onclick="exportYap('csv')">⬇ CSV</button>
     <button class="tbtn" onclick="toggleFSMap()" id="fsbtn">⛶</button>
     <button class="tbtn" onclick="toggleTheme()" id="themebtn" title="Tema değiştir">☀</button>
-    <button class="tbtn" onclick="togglePanel('notif')" id="notbtn" title="Bildirim Paneli Aç/Kapat">🔔</button>
+    <button class="tbtn" onclick="togglePanel('notif')" id="notbtn" title="Bildirim Paneli Aç/Kapat">🔔<span class="restore-badge" id="notif-topbar-count"></span></button>
+    <button class="tbtn" onclick="togglePanel('right')" id="restore-right" title="İstihbarat Akışını Aç">🧠 İSTİHBARAT</button>
+    <button class="tbtn" onclick="togglePanel('notif')" id="restore-notif" title="Bildirimleri Aç">🔔 BİLDİRİMLER</button>
     <button class="tbtn on" onclick="toggleGlobalSound()" id="soundbtn" title="Sesi aç/kapat">🔊</button>
     <div id="clock">--:--:--</div>
   </header>
@@ -2911,9 +2915,9 @@
     <div class="rhead">
       <h2>🧠 İSTİHBARAT AKIŞI</h2>
       <div class="rheadbtns">
-        <button class="panel-tgl tgl-right" id="tgl-right" onclick="togglePanel('right')" title="İstihbarat Akışını Küçült/Geri Getir">▶</button>
         <button class="tbtn" onclick="clearFeed()">SİL</button>
         <button class="tbtn" onclick="manuelCek()">⟳</button>
+        <button class="tbtn red" onclick="togglePanel('right')" id="tgl-right" title="İstihbarat Akışını Kapat">✕</button>
       </div>
     </div>
     <div class="sbar">
@@ -2961,9 +2965,9 @@
       <h3>🔔 BİLDİRİMLER</h3>
       <div class="notif-head-btns">
         <button class="panel-tgl" id="ntgl" onclick="toggleNotifBtn(this)" title="Tarayıcı Bildirimleri Aç/Kapat">🔔 AÇIK</button>
-        <button class="panel-tgl tgl-notif" id="tgl-notif" onclick="togglePanel('notif')" title="Bildirim Panelini Küçült/Geri Getir">▶</button>
         <span id="notif-count" style="background:var(--red);color:#fff;font-size:.52rem;font-weight:700;padding:1px 5px;border-radius:8px;min-width:18px;text-align:center;display:none">0</span>
         <button class="tbtn" style="font-size:.52rem;padding:2px 6px" onclick="clearNotifs()">SİL</button>
+        <button class="tbtn red" onclick="togglePanel('notif')" id="tgl-notif" title="Bildirim Panelini Kapat">✕</button>
       </div>
     </div>
     <div id="notif-list">
@@ -4021,21 +4025,27 @@
     // ══════════════════════════════════════════
     let _notifCount = 0;
 
-    // ── PANEL KÜÇÜLT / GERİ GETİR ──
+    // ── PANEL AÇ / KAPAT ──
     function togglePanel(which) {
       const cls = 'min-' + which;
       const collapsed = document.body.classList.toggle(cls);
-      // Ok yönünü çevir
-      const arrows = { left: ['◀','▶'], right: ['▶','◀'], notif: ['▶','◀'] };
-      const btn = document.getElementById('tgl-' + which);
-      if (btn && arrows[which]) btn.textContent = collapsed ? arrows[which][1] : arrows[which][0];
-      // Topbar bell butonu aktif durumu göster
+
+      if (which === 'left') {
+        // Sol: 40px şerit — ok yönü güncelle
+        const btn = document.getElementById('tgl-left');
+        if (btn) btn.textContent = collapsed ? '▶' : '◀';
+      }
+
+      if (which === 'right' || which === 'notif') {
+        // Haritayı yeniden boyutlandır
+        setTimeout(() => { try { map.invalidateSize(); } catch(e){} }, 320);
+      }
+
       if (which === 'notif') {
+        // Topbar bell: kapalıyken sarı vurgu
         const nb = document.getElementById('notbtn');
         if (nb) nb.classList.toggle('on', !collapsed);
       }
-      // Harita yeniden boyutlandır
-      if (which !== 'notif') setTimeout(() => { try { map.invalidateSize(); } catch(e){} }, 320);
     }
 
     function scrollNotifTop() {
@@ -4044,6 +4054,8 @@
       _notifCount = 0;
       const cnt = document.getElementById('notif-count');
       if (cnt) cnt.style.display = 'none';
+      const tb = document.getElementById('notif-topbar-count');
+      if (tb) { tb.textContent = ''; tb.classList.remove('show'); }
     }
 
     function addNotif(tip, baslik, mesaj, koordinat) {
@@ -4073,6 +4085,9 @@
       _notifCount++;
       const cnt = document.getElementById('notif-count');
       if (cnt) { cnt.textContent = _notifCount > 99 ? '99+' : _notifCount; cnt.style.display = 'inline-block'; }
+      // Topbar badge — panel kapalıyken göster
+      const tb = document.getElementById('notif-topbar-count');
+      if (tb) { tb.textContent = _notifCount > 99 ? '99+' : _notifCount; tb.classList.add('show'); }
     }
 
     function clearNotifs() {
@@ -4085,6 +4100,8 @@
       _notifCount = 0;
       const cnt = document.getElementById('notif-count');
       if (cnt) { cnt.textContent = '0'; cnt.style.display = 'none'; }
+      const tb = document.getElementById('notif-topbar-count');
+      if (tb) { tb.textContent = ''; tb.classList.remove('show'); }
     }
 
     // ══════════════════════════════════════════
