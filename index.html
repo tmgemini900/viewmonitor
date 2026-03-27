@@ -3548,13 +3548,20 @@
     }
     function clearAlarms() { alarmGroup.clearLayers(); allAlarms = []; document.getElementById('mi-hedef').textContent = '—'; }
     function mapReset() { map.flyTo([38.5, 34], 4, { animate: true, duration: 1.5 }); }
-    function gotoMap(coordStr, name) {
+    function gotoMap(coords, name) {
       try {
-        const coords = typeof coordStr === 'string' ? JSON.parse(coordStr) : coordStr;
-        map.flyTo(coords, 8, { animate: true, duration: 1.5 });
+        const c = typeof coords === 'string' ? JSON.parse(coords) : coords;
+        map.flyTo(c, 8, { animate: true, duration: 1.5 });
         document.getElementById('mi-hedef').textContent = name || '—';
       } catch(e) { console.warn('gotoMap:', e); }
     }
+
+    // Harita butonları için event delegation (onclick injection önlemi)
+    document.getElementById('feed').addEventListener('click', function(e) {
+      const btn = e.target.closest('.cmapbtn');
+      if (!btn) return;
+      try { gotoMap(btn.dataset.coord, btn.dataset.hname); } catch(ex) {}
+    });
 
     // Map modal
     const MODAL_URLS = {
@@ -3692,13 +3699,13 @@
       const tipLabel = tip === 'twitter' ? '𝕏' : tip === 'usgs' ? '⚡USGS' : tip === 'afad' ? '⚡AFAD' : tip === 'kandilli' ? '🌋KANDİLLİ' : tip === 'eonet' ? '🛸EONET' : tip.toUpperCase();
       const tipbadge = `<span class="cbadge ${tip === 'twitter' ? 'twitter' : tip}">${tipLabel}</span>`;
       const priobadge = `<span class="cprio ${prio}">${prio}</span>`;
-      const srclink = m.link && m.link.startsWith('http') ? `<a class="csrclink" href="${m.link}" target="_blank" rel="noopener">↗ KAYNAK</a>` : `<span style="color:var(--tdim);font-size:.57rem">—</span>`;
-      const _coord = m.koordinat ? encodeURIComponent(JSON.stringify(m.koordinat)) : null;
-      const _hname = (m.hedef_isim || '').replace(/'/g,"\'");
-      const mapbtn = _coord ? `<button class="cmapbtn" onclick="gotoMap(decodeURIComponent('${_coord}'),'${_hname}')">📍 HARİTA</button>` : '';
+      const _safeLink = m.link && /^https?:\/\//i.test(m.link) ? m.link : null;
+      const srclink = _safeLink ? `<a class="csrclink" href="${esc(_safeLink)}" target="_blank" rel="noopener noreferrer">↗ KAYNAK</a>` : `<span style="color:var(--tdim);font-size:.57rem">—</span>`;
+      const _coord = m.koordinat ? JSON.stringify(m.koordinat) : null;
+      const mapbtn = _coord ? `<button class="cmapbtn" data-coord="${esc(_coord)}" data-hname="${esc(m.hedef_isim || '')}">📍 HARİTA</button>` : '';
       const aiLbl = alarm ? `<div class="cairlabel">KİLİTLENDİ — ${esc(m.hedef_isim)}</div>` : '';
       const kwLbl = (kw && !alarm) ? `<div class="ckwlabel">🔍 ${keywords.filter(k => (m.mesaj_ceviri + m.mesaj_orijinal).toLowerCase().includes(k)).join(', ')}</div>` : '';
-      const aiOzetLbl = m.ai_ozet ? `<div class="caiozet"><span class="caiozet-icon">🤖</span><span><b>AI ANALİZİ:</b> ${m.ai_ozet}</span></div>` : '';
+      const aiOzetLbl = m.ai_ozet ? `<div class="caiozet"><span class="caiozet-icon">🤖</span><span><b>AI ANALİZİ:</b> ${esc(m.ai_ozet)}</span></div>` : '';
       return `<div class="card ${cls}" data-tip="${tip}" data-alarm="${alarm ? '1' : '0'}">
     <div class="cmeta">
       <div class="cmeta-left"><span class="cflag">${m.bayrak || '🌍'}</span><span class="csrc">${esc(m.kaynak)}</span></div>

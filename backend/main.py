@@ -510,14 +510,14 @@ def oncelik_hesapla(metin: str, ai: bool) -> tuple:
 async def dil_cevir(metin: str) -> tuple:
     if not metin or len(metin.strip()) < 5: return "unk", metin
     try:    dil = detect(metin)
-    except: dil = "unk"
+    except Exception: dil = "unk"
     if dil == "tr": return "tr", metin
     try:
         ceviri = await asyncio.to_thread(
             GoogleTranslator(source="auto", target="tr").translate, metin[:500]
         )
         return dil, ceviri or metin
-    except: return dil, metin
+    except Exception: return dil, metin
 
 def lokasyon_tara(metin: str) -> tuple:
     t = metin.lower()
@@ -546,7 +546,7 @@ async def sse_yayinla(veri: dict):
     son_veri_cache = veri
     for q in list(sse_clients):
         try:   await q.put(veri)
-        except: sse_clients.remove(q)
+        except Exception: sse_clients.remove(q)
 
 # ══════════════════════════════════════════════
 # SCRAPERS
@@ -598,7 +598,7 @@ async def telegram_cek(kanal: str) -> Optional[dict]:
                     try:
                         mt = datetime.fromisoformat(te["datetime"].replace("Z","+00:00"))
                         if mt < sinir: continue
-                    except: pass
+                    except Exception: pass
                 kutu = msg.find("div",class_="tgme_widget_message_text")
                 if not kutu: continue
                 metin = kutu.get_text(" ",strip=True)
@@ -1201,7 +1201,7 @@ if __name__ == "__main__":
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]; s.close()
-    except:
+    except Exception:
         local_ip = "?.?.?.?"
     print(f"""
 ╔══════════════════════════════════════════════╗
